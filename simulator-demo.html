@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EMS Simulator Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #182033;
+      --muted: #69748a;
+      --line: #dfe5ef;
+      --solar: #f3b33d;
+      --battery: #28a071;
+      --grid: #5872d8;
+      --load: #d15b5b;
+      --ems: #4057c8;
+      --shadow: 0 18px 55px rgba(31, 41, 55, 0.11);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(247, 248, 251, 0.94)),
+        radial-gradient(circle at 18% 10%, rgba(243, 179, 61, 0.18), transparent 25rem),
+        radial-gradient(circle at 85% 82%, rgba(40, 160, 113, 0.12), transparent 28rem),
+        var(--bg);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1420px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 32px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 2.2vw, 2.35rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      max-width: 760px;
+    }
+
+    .clock-card {
+      min-width: 210px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+      text-align: right;
+    }
+
+    .clock-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .clock-card strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.55rem;
+      line-height: 1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(290px, 360px) minmax(520px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 18px;
+    }
+
+    .controls h2,
+    .metrics h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fff;
+      padding: 0 12px;
+      outline: none;
+    }
+
+    input[type="number"]:focus,
+    input[type="range"]:focus-visible,
+    button:focus-visible {
+      border-color: var(--ems);
+      outline: 3px solid rgba(64, 87, 200, 0.14);
+    }
+
+    .timeline-box {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .transport {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .play {
+      width: 48px;
+      height: 48px;
+      border: 0;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--ems);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(64, 87, 200, 0.24);
+    }
+
+    .play svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--ems);
+    }
+
+    .time-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+
+    .metrics {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    .metric-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:last-child {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+
+    .metric strong {
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 760px;
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .diagram {
+      position: relative;
+      min-height: 650px;
+      display: grid;
+      place-items: center;
+    }
+
+    .factory {
+      position: relative;
+      z-index: 2;
+      width: min(30vw, 320px);
+      min-width: 240px;
+      aspect-ratio: 1.16;
+      display: grid;
+      place-items: center;
+    }
+
+    .factory svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 18px 22px rgba(38, 52, 85, 0.13));
+    }
+
+    .ems-core {
+      position: absolute;
+      z-index: 3;
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #6277ee, #3447be);
+      border: 8px solid rgba(255, 255, 255, 0.72);
+      box-shadow: 0 16px 36px rgba(52, 71, 190, 0.3);
+    }
+
+    .ems-core span {
+      display: block;
+      font-weight: 800;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+    }
+
+    .device {
+      position: absolute;
+      z-index: 4;
+      width: 170px;
+      min-height: 116px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 34px rgba(31, 41, 55, 0.1);
+    }
+
+    .device.top {
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device.left {
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.right {
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.bottom {
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .device-title svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 2.3;
+    }
+
+    .device-readout {
+      margin-top: 10px;
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .device-readout strong {
+      color: var(--ink);
+      font-size: 1.05rem;
+    }
+
+    .setpoint {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    .setpoint strong {
+      display: block;
+      color: var(--ems);
+      margin-top: 2px;
+      font-size: 0.9rem;
+    }
+
+    .connector {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .connector.solar {
+      top: 133px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 150px);
+      min-height: 118px;
+      transform: translateX(-50%);
+    }
+
+    .connector.grid {
+      bottom: 132px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 150px);
+      min-height: 150px;
+      transform: translateX(-50%);
+    }
+
+    .connector.battery {
+      top: 50%;
+      left: 184px;
+      width: calc(50% - 202px);
+      min-width: 120px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .connector.load {
+      top: 50%;
+      right: 184px;
+      width: calc(50% - 202px);
+      min-width: 120px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(105, 116, 138, 0.14);
+      overflow: hidden;
+    }
+
+    .track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: repeating-linear-gradient(
+        var(--angle, 0deg),
+        transparent 0 16px,
+        var(--flow-color, var(--ems)) 16px 28px,
+        transparent 28px 44px
+      );
+      opacity: var(--flow-opacity, 0);
+      animation: moveFlow var(--flow-speed, 1.5s) linear infinite;
+      animation-direction: var(--flow-direction, normal);
+    }
+
+    .connector.horizontal .track::after {
+      --angle: 90deg;
+    }
+
+    .connector.vertical .track::after {
+      --angle: 0deg;
+    }
+
+    @keyframes moveFlow {
+      from {
+        transform: translate(var(--flow-x-start, 0), var(--flow-y-start, 0));
+      }
+
+      to {
+        transform: translate(var(--flow-x-end, 0), var(--flow-y-end, 36px));
+      }
+    }
+
+    .connector.horizontal .track::after {
+      --flow-x-end: 44px;
+      --flow-y-end: 0;
+    }
+
+    .connector.vertical .track::after {
+      --flow-x-end: 0;
+      --flow-y-end: 44px;
+    }
+
+    .connector.reverse .track::after {
+      animation-direction: reverse;
+    }
+
+    .state-strip {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      z-index: 5;
+    }
+
+    .state-pill {
+      min-height: 70px;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+
+    .state-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .state-pill strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1rem;
+    }
+
+    .chart {
+      margin-top: 18px;
+      padding: 16px 18px 18px;
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .chart-head h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 5px;
+      border-radius: 50%;
+      background: var(--dot);
+    }
+
+    canvas {
+      width: 100%;
+      height: 188px;
+      display: block;
+    }
+
+    @media (max-width: 1040px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        min-height: 760px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100vw - 20px, 720px);
+        padding-top: 14px;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .clock-card {
+        text-align: left;
+      }
+
+      .stage {
+        padding: 14px;
+        min-height: 920px;
+      }
+
+      .diagram {
+        min-height: 800px;
+      }
+
+      .factory {
+        width: min(72vw, 320px);
+        min-width: 230px;
+      }
+
+      .device {
+        width: min(45vw, 166px);
+        min-height: 112px;
+      }
+
+      .device.top {
+        top: 12px;
+      }
+
+      .device.left {
+        left: 0;
+        top: 43%;
+      }
+
+      .device.right {
+        right: 0;
+        top: 43%;
+      }
+
+      .device.bottom {
+        bottom: 120px;
+      }
+
+      .connector.solar {
+        top: 128px;
+      }
+
+      .connector.grid {
+        bottom: 235px;
+      }
+
+      .connector.battery {
+        left: 150px;
+        width: calc(50% - 160px);
+      }
+
+      .connector.load {
+        right: 150px;
+        width: calc(50% - 160px);
+      }
+
+      .state-strip {
+        grid-template-columns: repeat(2, 1fr);
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>EMS Simulator Demo</h1>
+        <p class="subtitle">Zero export control for a factory with rooftop solar, battery storage, grid connection, and production load.</p>
+      </div>
+      <div class="clock-card" aria-live="polite">
+        <span>Simulated time</span>
+        <strong id="clock">00:00</strong>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside>
+        <section class="panel controls" aria-label="Simulator configuration">
+          <h2>Configuration</h2>
+          <div class="field-grid">
+            <label>
+              Solar installed kW
+              <input id="solarKw" type="number" min="0" step="10" value="750">
+            </label>
+            <label>
+              Factory max load kW
+              <input id="factoryKw" type="number" min="0" step="10" value="520">
+            </label>
+            <label>
+              Battery capacity kWh
+              <input id="batteryKwh" type="number" min="1" step="10" value="1200">
+            </label>
+            <label>
+              Battery power kW
+              <input id="batteryKw" type="number" min="0" step="10" value="300">
+            </label>
+            <label>
+              Battery starting %
+              <input id="batteryStart" type="number" min="0" max="100" step="1" value="35">
+            </label>
+            <label>
+              Minimum discharge %
+              <input id="minSoc" type="number" min="0" max="95" step="1" value="15">
+            </label>
+          </div>
+
+          <div class="timeline-box">
+            <div class="transport">
+              <button class="play" id="playButton" type="button" aria-label="Play simulation">
+                <svg id="playIcon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"></path>
+                </svg>
+              </button>
+              <div>
+                <input id="timeline" type="range" min="0" max="95" value="0" aria-label="Timeline">
+                <div class="time-scale">
+                  <span>00:00</span>
+                  <span>06:00</span>
+                  <span>12:00</span>
+                  <span>18:00</span>
+                  <span>24:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel metrics" aria-label="Live EMS totals">
+          <h2>Live Totals</h2>
+          <div class="metric-list">
+            <div class="metric"><span>Solar production</span><strong id="metricSolar">0 kW</strong></div>
+            <div class="metric"><span>Factory usage</span><strong id="metricLoad">0 kW</strong></div>
+            <div class="metric"><span>Battery state</span><strong id="metricBattery">0%</strong></div>
+            <div class="metric"><span>Grid import</span><strong id="metricImport">0 kW</strong></div>
+            <div class="metric"><span>Grid export</span><strong id="metricExport">0 kW</strong></div>
+          </div>
+        </section>
+      </aside>
+
+      <section>
+        <section class="panel stage" aria-label="Factory energy flow">
+          <div class="diagram">
+            <div class="connector solar vertical" id="solarFlow"><div class="track"></div></div>
+            <div class="connector battery horizontal" id="batteryFlow"><div class="track"></div></div>
+            <div class="connector load horizontal" id="loadFlow"><div class="track"></div></div>
+            <div class="connector grid vertical" id="gridFlow"><div class="track"></div></div>
+
+            <article class="device top">
+              <div class="device-title" style="color: var(--solar);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 14h16l-2-7H6l-2 7Z"></path><path d="M4 14l-1 4h18l-1-4"></path><path d="M8 7l-1 7"></path><path d="M16 7l1 7"></path><path d="M12 7v7"></path></svg>
+                Rooftop solar
+              </div>
+              <div class="device-readout">
+                <span>Production <strong id="solarPower">0 kW</strong></span>
+                <span>Profile <strong id="solarProfile">0.00</strong></span>
+              </div>
+              <div class="setpoint">EMS set-point<strong id="solarSetpoint">0 kW allowed</strong></div>
+            </article>
+
+            <article class="device left">
+              <div class="device-title" style="color: var(--battery);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="4" y="7" width="15" height="10" rx="2"></rect><path d="M19 10h2v4h-2"></path><path d="M8 11h4"></path></svg>
+                Battery
+              </div>
+              <div class="device-readout">
+                <span>State of charge <strong id="batterySoc">0%</strong></span>
+                <span>Flow <strong id="batteryPower">0 kW</strong></span>
+              </div>
+              <div class="setpoint">EMS set-point<strong id="batterySetpoint">Idle</strong></div>
+            </article>
+
+            <article class="device right">
+              <div class="device-title" style="color: var(--load);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V9l6 4V9l8 5v7"></path><path d="M9 17h1"></path><path d="M14 17h1"></path></svg>
+                Factory usage
+              </div>
+              <div class="device-readout">
+                <span>Demand <strong id="loadPower">0 kW</strong></span>
+                <span>Profile <strong id="loadProfile">0.00</strong></span>
+              </div>
+            </article>
+
+            <article class="device bottom">
+              <div class="device-title" style="color: var(--grid);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v18"></path><path d="M5 21h14"></path><path d="M7 8h10"></path><path d="M9 8l-3 13"></path><path d="M15 8l3 13"></path><path d="M9 4h6"></path></svg>
+                Grid
+              </div>
+              <div class="device-readout">
+                <span>Import <strong id="gridImport">0 kW</strong></span>
+                <span>Export <strong id="gridExport">0 kW</strong></span>
+              </div>
+              <div class="setpoint">EMS target<strong id="gridSetpoint">0 kW export</strong></div>
+            </article>
+
+            <div class="factory" aria-hidden="true">
+              <svg viewBox="0 0 460 395" role="img">
+                <defs>
+                  <linearGradient id="wall" x1="0" x2="1" y1="0" y2="1">
+                    <stop stop-color="#eef3fb"></stop>
+                    <stop offset="1" stop-color="#d6deec"></stop>
+                  </linearGradient>
+                  <linearGradient id="roof" x1="0" x2="1">
+                    <stop stop-color="#74839d"></stop>
+                    <stop offset="1" stop-color="#4e5d75"></stop>
+                  </linearGradient>
+                </defs>
+                <path d="M76 355V167l89 51v-51l93 53v-60l126 71v124H76Z" fill="url(#wall)" stroke="#c6cfdd" stroke-width="4"></path>
+                <path d="M66 168l101 58v-52l93 53v-61l133 76" fill="none" stroke="url(#roof)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></path>
+                <rect x="109" y="266" width="48" height="89" rx="3" fill="#9badc8"></rect>
+                <rect x="195" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="258" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="321" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="195" y="325" width="168" height="30" rx="4" fill="#74839d"></rect>
+              </svg>
+              <div class="ems-core"><span>EMS</span></div>
+            </div>
+          </div>
+
+          <div class="state-strip" aria-label="Current control state">
+            <div class="state-pill"><span>EMS mode</span><strong id="modeState">Balanced</strong></div>
+            <div class="state-pill"><span>Solar to factory</span><strong id="solarToLoad">0 kW</strong></div>
+            <div class="state-pill"><span>Battery action</span><strong id="batteryAction">Idle</strong></div>
+            <div class="state-pill"><span>Grid state</span><strong id="gridState">Neutral</strong></div>
+          </div>
+        </section>
+
+        <section class="panel chart" aria-label="Day profile chart">
+          <div class="chart-head">
+            <h2>Quarter-hour Profile</h2>
+            <div class="legend">
+              <span style="--dot: var(--solar);">Solar</span>
+              <span style="--dot: var(--load);">Load</span>
+              <span style="--dot: var(--battery);">Battery %</span>
+            </div>
+          </div>
+          <canvas id="profileChart" width="980" height="250"></canvas>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const STEPS_PER_DAY = 96;
+    const DAY_MS = 60000;
+    const STEP_SECONDS = 15 * 60;
+
+    const els = {
+      solarKw: document.getElementById("solarKw"),
+      factoryKw: document.getElementById("factoryKw"),
+      batteryKwh: document.getElementById("batteryKwh"),
+      batteryKw: document.getElementById("batteryKw"),
+      batteryStart: document.getElementById("batteryStart"),
+      minSoc: document.getElementById("minSoc"),
+      timeline: document.getElementById("timeline"),
+      playButton: document.getElementById("playButton"),
+      playIcon: document.getElementById("playIcon"),
+      clock: document.getElementById("clock"),
+      solarPower: document.getElementById("solarPower"),
+      solarProfile: document.getElementById("solarProfile"),
+      solarSetpoint: document.getElementById("solarSetpoint"),
+      batterySoc: document.getElementById("batterySoc"),
+      batteryPower: document.getElementById("batteryPower"),
+      batterySetpoint: document.getElementById("batterySetpoint"),
+      loadPower: document.getElementById("loadPower"),
+      loadProfile: document.getElementById("loadProfile"),
+      gridImport: document.getElementById("gridImport"),
+      gridExport: document.getElementById("gridExport"),
+      gridSetpoint: document.getElementById("gridSetpoint"),
+      metricSolar: document.getElementById("metricSolar"),
+      metricLoad: document.getElementById("metricLoad"),
+      metricBattery: document.getElementById("metricBattery"),
+      metricImport: document.getElementById("metricImport"),
+      metricExport: document.getElementById("metricExport"),
+      solarFlow: document.getElementById("solarFlow"),
+      batteryFlow: document.getElementById("batteryFlow"),
+      loadFlow: document.getElementById("loadFlow"),
+      gridFlow: document.getElementById("gridFlow"),
+      modeState: document.getElementById("modeState"),
+      solarToLoad: document.getElementById("solarToLoad"),
+      batteryAction: document.getElementById("batteryAction"),
+      gridState: document.getElementById("gridState"),
+      chart: document.getElementById("profileChart")
+    };
+
+    const solarProfile = Array.from({ length: STEPS_PER_DAY }, (_, step) => {
+      const hour = step / 4;
+      const sunrise = 5.5;
+      const sunset = 20.5;
+      if (hour < sunrise || hour > sunset) return 0;
+      const sun = Math.sin(((hour - sunrise) / (sunset - sunrise)) * Math.PI);
+      const shoulder = 0.86 + 0.14 * Math.sin(hour * 1.7);
+      return clamp(sun * shoulder, 0, 1);
+    });
+
+    const loadProfile = Array.from({ length: STEPS_PER_DAY }, (_, step) => {
+      const hour = step / 4;
+      const nightBase = 0.2 + 0.025 * Math.sin(hour * 1.8);
+      const rampUp = smoothstep(6.25, 8, hour);
+      const rampDown = 1 - smoothstep(16, 18, hour);
+      const production = rampUp * rampDown;
+      const workPulse = 0.08 * Math.sin(step * 0.75) + 0.04 * Math.sin(step * 1.7);
+      return clamp(nightBase + production * (0.7 + workPulse), 0.18, 1);
+    });
+
+    let isPlaying = false;
+    let playStartedAt = 0;
+    let playStartStep = 0;
+    let currentStep = 0;
+    let lastConfigKey = "";
+    let dayStates = [];
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function smoothstep(edge0, edge1, value) {
+      const x = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+      return x * x * (3 - 2 * x);
+    }
+
+    function kw(value) {
+      return `${Math.round(value).toLocaleString("en-US")} kW`;
+    }
+
+    function pct(value) {
+      return `${Math.round(value)}%`;
+    }
+
+    function getConfig() {
+      const batteryStart = clamp(Number(els.batteryStart.value) || 0, 0, 100);
+      const minSoc = clamp(Number(els.minSoc.value) || 0, 0, 95);
+      if (batteryStart < minSoc) {
+        els.batteryStart.value = minSoc;
+      }
+      return {
+        solarKw: Math.max(0, Number(els.solarKw.value) || 0),
+        factoryKw: Math.max(0, Number(els.factoryKw.value) || 0),
+        batteryKwh: Math.max(1, Number(els.batteryKwh.value) || 1),
+        batteryKw: Math.max(0, Number(els.batteryKw.value) || 0),
+        batteryStart: Math.max(batteryStart, minSoc),
+        minSoc
+      };
+    }
+
+    function simulateDay(config) {
+      const states = [];
+      let batteryKwh = config.batteryKwh * (config.batteryStart / 100);
+      const minKwh = config.batteryKwh * (config.minSoc / 100);
+
+      for (let step = 0; step < STEPS_PER_DAY; step += 1) {
+        const solarPotential = solarProfile[step] * config.solarKw;
+        const load = loadProfile[step] * config.factoryKw;
+        const batteryHeadroom = Math.max(0, config.batteryKwh - batteryKwh);
+        const dischargeAvailable = Math.max(0, batteryKwh - minKwh);
+        const directSolar = Math.min(solarPotential, load);
+
+        let chargePower = 0;
+        let dischargePower = 0;
+        let gridImport = 0;
+        let gridExport = 0;
+        let solarCurtail = 0;
+
+        if (solarPotential > load) {
+          const excess = solarPotential - load;
+          const maxChargeByCapacity = (batteryHeadroom / STEP_SECONDS) * 3600;
+          chargePower = Math.min(excess, config.batteryKw, maxChargeByCapacity);
+          solarCurtail = Math.max(0, excess - chargePower);
+          batteryKwh += chargePower * (STEP_SECONDS / 3600);
+        } else {
+          const deficit = load - solarPotential;
+          const maxDischargeByEnergy = (dischargeAvailable / STEP_SECONDS) * 3600;
+          dischargePower = Math.min(deficit, config.batteryKw, maxDischargeByEnergy);
+          gridImport = Math.max(0, deficit - dischargePower);
+          batteryKwh -= dischargePower * (STEP_SECONDS / 3600);
+        }
+
+        batteryKwh = clamp(batteryKwh, minKwh, config.batteryKwh);
+
+        const solarAllowed = directSolar + chargePower;
+        const soc = (batteryKwh / config.batteryKwh) * 100;
+
+        states.push({
+          step,
+          solarPotential,
+          solarAllowed,
+          solarCurtail,
+          directSolar,
+          load,
+          chargePower,
+          dischargePower,
+          batteryNetPower: chargePower - dischargePower,
+          gridImport,
+          gridExport,
+          soc,
+          solarProfile: solarProfile[step],
+          loadProfile: loadProfile[step]
+        });
+      }
+
+      return states;
+    }
+
+    function ensureSimulation() {
+      const config = getConfig();
+      const key = JSON.stringify(config);
+      if (key !== lastConfigKey) {
+        lastConfigKey = key;
+        dayStates = simulateDay(config);
+        drawChart(dayStates);
+      }
+      return config;
+    }
+
+    function formatTime(step) {
+      const minutes = step * 15;
+      const hour = Math.floor(minutes / 60) % 24;
+      const minute = minutes % 60;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function setFlow(el, amount, max, color, reverse = false) {
+      const intensity = max > 0 ? clamp(amount / max, 0, 1) : 0;
+      el.classList.toggle("reverse", reverse);
+      el.style.setProperty("--flow-color", color);
+      el.style.setProperty("--flow-opacity", intensity > 0.01 ? String(0.28 + intensity * 0.72) : "0");
+      el.style.setProperty("--flow-speed", `${clamp(1.4 - intensity * 0.95, 0.38, 1.4)}s`);
+    }
+
+    function updateView(step) {
+      const config = ensureSimulation();
+      currentStep = ((step % STEPS_PER_DAY) + STEPS_PER_DAY) % STEPS_PER_DAY;
+      els.timeline.value = currentStep;
+
+      const state = dayStates[currentStep];
+      const maxFlow = Math.max(config.solarKw, config.factoryKw, config.batteryKw, 1);
+      const batteryFlow = Math.abs(state.batteryNetPower);
+      const batteryAction = state.chargePower > 0.1
+        ? `Charging ${kw(state.chargePower)}`
+        : state.dischargePower > 0.1
+          ? `Discharging ${kw(state.dischargePower)}`
+          : "Idle";
+      const mode = state.solarCurtail > 0.1
+        ? "Zero export: solar curtailed"
+        : state.chargePower > 0.1
+          ? "Zero export: charging"
+          : state.dischargePower > 0.1
+            ? "Load support"
+            : state.gridImport > 0.1
+              ? "Grid import"
+              : "Balanced";
+
+      els.clock.textContent = formatTime(currentStep);
+      els.solarPower.textContent = kw(state.solarPotential);
+      els.solarProfile.textContent = state.solarProfile.toFixed(2);
+      els.solarSetpoint.textContent = `${kw(state.solarAllowed)} allowed`;
+      els.batterySoc.textContent = pct(state.soc);
+      els.batteryPower.textContent = state.batteryNetPower > 0.1
+        ? `+${kw(state.chargePower)}`
+        : state.batteryNetPower < -0.1
+          ? `-${kw(state.dischargePower)}`
+          : "0 kW";
+      els.batterySetpoint.textContent = batteryAction;
+      els.loadPower.textContent = kw(state.load);
+      els.loadProfile.textContent = state.loadProfile.toFixed(2);
+      els.gridImport.textContent = kw(state.gridImport);
+      els.gridExport.textContent = kw(state.gridExport);
+      els.gridSetpoint.textContent = state.gridExport > 0.1 ? "Clamp export" : "0 kW export";
+
+      els.metricSolar.textContent = kw(state.solarAllowed);
+      els.metricLoad.textContent = kw(state.load);
+      els.metricBattery.textContent = pct(state.soc);
+      els.metricImport.textContent = kw(state.gridImport);
+      els.metricExport.textContent = kw(state.gridExport);
+      els.modeState.textContent = mode;
+      els.solarToLoad.textContent = kw(state.directSolar);
+      els.batteryAction.textContent = batteryAction;
+      els.gridState.textContent = state.gridImport > 0.1
+        ? `Importing ${kw(state.gridImport)}`
+        : state.gridExport > 0.1
+          ? `Exporting ${kw(state.gridExport)}`
+          : "Zero export";
+
+      setFlow(els.solarFlow, state.solarAllowed, maxFlow, "var(--solar)", false);
+      setFlow(els.loadFlow, state.load, maxFlow, "var(--load)", false);
+      setFlow(els.batteryFlow, batteryFlow, Math.max(config.batteryKw, 1), "var(--battery)", state.chargePower > 0.1);
+      setFlow(els.gridFlow, state.gridImport || state.gridExport, maxFlow, "var(--grid)", state.gridImport > 0.1);
+      drawChart(dayStates, currentStep);
+    }
+
+    function drawChart(states, activeStep = currentStep) {
+      const canvas = els.chart;
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(rect.width * ratio));
+      const height = Math.max(180, Math.floor(rect.height * ratio));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.scale(ratio, ratio);
+
+      const w = width / ratio;
+      const h = height / ratio;
+      const pad = { top: 12, right: 12, bottom: 24, left: 38 };
+      const innerW = w - pad.left - pad.right;
+      const innerH = h - pad.top - pad.bottom;
+      const maxPower = Math.max(...states.flatMap((s) => [s.solarPotential, s.load]), 1);
+
+      ctx.strokeStyle = "#dfe5ef";
+      ctx.lineWidth = 1;
+      ctx.font = "12px Inter, sans-serif";
+      ctx.fillStyle = "#69748a";
+
+      for (let i = 0; i <= 4; i += 1) {
+        const y = pad.top + (innerH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + innerW, y);
+        ctx.stroke();
+      }
+
+      ["00", "06", "12", "18", "24"].forEach((label, i) => {
+        const x = pad.left + (innerW / 4) * i;
+        ctx.fillText(label, x - 7, h - 5);
+      });
+
+      function pathFor(getValue, maxValue) {
+        ctx.beginPath();
+        states.forEach((s, index) => {
+          const x = pad.left + (index / (STEPS_PER_DAY - 1)) * innerW;
+          const y = pad.top + innerH - (getValue(s) / maxValue) * innerH;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+      }
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#f3b33d";
+      pathFor((s) => s.solarPotential, maxPower);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#d15b5b";
+      pathFor((s) => s.load, maxPower);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#28a071";
+      pathFor((s) => s.soc, 100);
+      ctx.stroke();
+
+      const x = pad.left + (activeStep / (STEPS_PER_DAY - 1)) * innerW;
+      ctx.strokeStyle = "#182033";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, pad.top);
+      ctx.lineTo(x, pad.top + innerH);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function setPlaying(next) {
+      isPlaying = next;
+      playStartedAt = performance.now();
+      playStartStep = currentStep;
+      els.playButton.setAttribute("aria-label", isPlaying ? "Pause simulation" : "Play simulation");
+      els.playIcon.innerHTML = isPlaying
+        ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"></path>'
+        : '<path d="M8 5v14l11-7z"></path>';
+    }
+
+    function tick(now) {
+      if (isPlaying) {
+        const elapsed = (now - playStartedAt) % DAY_MS;
+        const stepOffset = Math.floor((elapsed / DAY_MS) * STEPS_PER_DAY);
+        updateView((playStartStep + stepOffset) % STEPS_PER_DAY);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    els.playButton.addEventListener("click", () => setPlaying(!isPlaying));
+    els.timeline.addEventListener("input", () => {
+      setPlaying(false);
+      updateView(Number(els.timeline.value));
+    });
+
+    [els.solarKw, els.factoryKw, els.batteryKwh, els.batteryKw, els.batteryStart, els.minSoc].forEach((input) => {
+      input.addEventListener("input", () => {
+        lastConfigKey = "";
+        updateView(currentStep);
+      });
+    });
+
+    window.addEventListener("resize", () => drawChart(dayStates, currentStep));
+
+    updateView(0);
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
