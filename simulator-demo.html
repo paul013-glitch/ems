@@ -527,6 +527,30 @@
       display: block;
     }
 
+    .price-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .price-meta a {
+      color: var(--ems);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .price-meta a:hover {
+      text-decoration: underline;
+    }
+
+    .status-text {
+      color: var(--muted);
+    }
+
     @media (max-width: 1040px) {
       .layout {
         grid-template-columns: 1fr;
@@ -790,6 +814,20 @@
           </div>
           <canvas id="profileChart" width="980" height="250"></canvas>
         </section>
+
+        <section class="panel chart" aria-label="Netherlands day-ahead energy prices">
+          <div class="chart-head">
+            <h2>Netherlands Day-Ahead Prices</h2>
+            <div class="legend">
+              <span style="--dot: var(--grid);">EUR/kWh</span>
+            </div>
+          </div>
+          <div class="price-meta">
+            <span id="priceStatus" class="status-text">Loading today prices...</span>
+            <a href="https://api.energy-charts.info/price?bzn=NL" target="_blank" rel="noreferrer">Source: Energy-Charts API</a>
+          </div>
+          <canvas id="priceChart" width="980" height="250"></canvas>
+        </section>
       </section>
     </div>
   </main>
@@ -834,7 +872,9 @@
       solarToLoad: document.getElementById("solarToLoad"),
       batteryAction: document.getElementById("batteryAction"),
       gridState: document.getElementById("gridState"),
-      chart: document.getElementById("profileChart")
+      chart: document.getElementById("profileChart"),
+      priceChart: document.getElementById("priceChart"),
+      priceStatus: document.getElementById("priceStatus")
     };
 
     const solarProfile = Array.from({ length: STEPS_PER_DAY }, (_, step) => {
@@ -863,6 +903,7 @@
     let currentStep = 0;
     let lastConfigKey = "";
     let dayStates = [];
+    let energyPrices = [];
 
     function clamp(value, min, max) {
       return Math.min(max, Math.max(min, value));
@@ -1117,6 +1158,128 @@
       ctx.restore();
     }
 
+    function drawPriceChart(prices) {
+      const canvas = els.priceChart;
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(320, Math.floor(rect.width * ratio));
+      const height = Math.max(180, Math.floor(rect.height * ratio));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.scale(ratio, ratio);
+
+      const w = width / ratio;
+      const h = height / ratio;
+      const pad = { top: 12, right: 12, bottom: 34, left: 52 };
+      const innerW = w - pad.left - pad.right;
+      const innerH = h - pad.top - pad.bottom;
+      const values = prices.map((item) => item.eurPerKwh);
+      const minValue = Math.min(0, ...values);
+      const maxValue = Math.max(0.001, ...values);
+      const range = maxValue - minValue || 0.001;
+
+      ctx.strokeStyle = "#dfe5ef";
+      ctx.lineWidth = 1;
+      ctx.font = "12px Inter, sans-serif";
+      ctx.fillStyle = "#69748a";
+
+      for (let i = 0; i <= 4; i += 1) {
+        const y = pad.top + (innerH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + innerW, y);
+        ctx.stroke();
+      }
+
+      const zeroY = pad.top + innerH - ((0 - minValue) / range) * innerH;
+      ctx.strokeStyle = "#9aa5b8";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, zeroY);
+      ctx.lineTo(pad.left + innerW, zeroY);
+      ctx.stroke();
+
+      if (!prices.length) {
+        ctx.fillText("No price data available", pad.left, pad.top + 28);
+        ctx.restore();
+        return;
+      }
+
+      const barGap = 3;
+      const barWidth = Math.max(5, innerW / prices.length - barGap);
+
+      prices.forEach((item, index) => {
+        const x = pad.left + index * (innerW / prices.length) + barGap / 2;
+        const y = pad.top + innerH - ((item.eurPerKwh - minValue) / range) * innerH;
+        const heightFromZero = Math.max(2, Math.abs(zeroY - y));
+        ctx.fillStyle = item.eurPerKwh < 0 ? "#28a071" : "#5872d8";
+        ctx.fillRect(x, Math.min(y, zeroY), barWidth, heightFromZero);
+
+        if (index % 3 === 0) {
+          ctx.fillStyle = "#69748a";
+          ctx.fillText(item.label, x - 4, h - 10);
+        }
+      });
+
+      const minLabel = `${minValue.toFixed(3)} EUR/kWh`;
+      const maxLabel = `${maxValue.toFixed(3)} EUR/kWh`;
+      ctx.fillStyle = "#69748a";
+      ctx.fillText(maxLabel, 0, pad.top + 4);
+      ctx.fillText(minLabel, 0, pad.top + innerH);
+
+      ctx.restore();
+    }
+
+    function normalizePriceData(data) {
+      const timestamps = data.unix_seconds || data.timestamps || data.time || [];
+      const prices = data.price || data.prices || [];
+      const todayKey = new Date().toDateString();
+
+      return timestamps
+        .map((timestamp, index) => {
+          const date = new Date(timestamp * 1000);
+          const eurPerMwh = Number(prices[index]);
+          return {
+            date,
+            eurPerMwh,
+            eurPerKwh: eurPerMwh / 1000,
+            label: `${String(date.getHours()).padStart(2, "0")}:00`
+          };
+        })
+        .filter((item) => Number.isFinite(item.eurPerKwh) && item.date.toDateString() === todayKey);
+    }
+
+    async function loadEnergyPrices() {
+      const sourceUrl = "https://api.energy-charts.info/price?bzn=NL";
+      try {
+        const response = await fetch(sourceUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        energyPrices = normalizePriceData(data);
+        drawPriceChart(energyPrices);
+
+        if (energyPrices.length) {
+          const lowest = energyPrices.reduce((best, item) => item.eurPerKwh < best.eurPerKwh ? item : best, energyPrices[0]);
+          const highest = energyPrices.reduce((best, item) => item.eurPerKwh > best.eurPerKwh ? item : best, energyPrices[0]);
+          els.priceStatus.textContent = `Today NL spot price: ${energyPrices.length} values, ${lowest.eurPerKwh.toFixed(3)} to ${highest.eurPerKwh.toFixed(3)} EUR/kWh`;
+        } else {
+          els.priceStatus.textContent = "API loaded, but no price values were available for today.";
+        }
+      } catch (error) {
+        energyPrices = [];
+        drawPriceChart(energyPrices);
+        els.priceStatus.textContent = `Could not load Energy-Charts prices: ${error.message}`;
+      }
+    }
+
     function setPlaying(next) {
       isPlaying = next;
       playStartedAt = performance.now();
@@ -1149,9 +1312,13 @@
       });
     });
 
-    window.addEventListener("resize", () => drawChart(dayStates, currentStep));
+    window.addEventListener("resize", () => {
+      drawChart(dayStates, currentStep);
+      drawPriceChart(energyPrices);
+    });
 
     updateView(0);
+    loadEnergyPrices();
     requestAnimationFrame(tick);
   </script>
 </body>
