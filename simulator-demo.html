@@ -1255,7 +1255,7 @@
     }
 
     async function loadEnergyPrices() {
-      const sourceUrl = "https://api.energy-charts.info/price?bzn=NL";
+      const sourceUrl = "/.netlify/functions/energy-prices";
       try {
         const response = await fetch(sourceUrl, { cache: "no-store" });
         if (!response.ok) {
