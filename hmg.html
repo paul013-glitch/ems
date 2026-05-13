@@ -490,6 +490,33 @@
       background: var(--legend-color);
     }
 
+    .energy-totals {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .energy-total {
+      min-height: 72px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .energy-total span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .energy-total strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 1.12rem;
+    }
+
     .mobile-flow {
       display: none;
     }
@@ -741,6 +768,10 @@
       .chart-wrap {
         height: 220px;
       }
+
+      .energy-totals {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 420px) {
@@ -908,6 +939,11 @@
         <span class="legend-item" style="--legend-color: var(--grid);">Grid</span>
         <span class="legend-item" style="--legend-color: var(--battery);">Battery</span>
       </div>
+      <div class="energy-totals" aria-label="Today energy totals">
+        <div class="energy-total"><span>Solar today</span><strong id="solarKwhToday">-- kWh</strong></div>
+        <div class="energy-total"><span>Battery charged today</span><strong id="batteryChargeKwhToday">-- kWh</strong></div>
+        <div class="energy-total"><span>Battery discharged today</span><strong id="batteryDischargeKwhToday">-- kWh</strong></div>
+      </div>
     </section>
   </main>
 
@@ -943,6 +979,9 @@
     };
     els.historyChart = document.getElementById("historyChart");
     els.chartStatus = document.getElementById("chartStatus");
+    els.solarKwhToday = document.getElementById("solarKwhToday");
+    els.batteryChargeKwhToday = document.getElementById("batteryChargeKwhToday");
+    els.batteryDischargeKwhToday = document.getElementById("batteryDischargeKwhToday");
     els.mobileSolar = document.getElementById("mobileSolar");
     els.mobileGrid = document.getElementById("mobileGrid");
     els.mobileBattery = document.getElementById("mobileBattery");
@@ -1065,6 +1104,55 @@
       els.chartStatus.textContent = historyPoints.length
         ? `${historyPoints.length} samples today`
         : "Waiting for history";
+      updateEnergyTotals();
+    }
+
+    function calculateEnergyTotals(points) {
+      const sorted = points
+        .filter((point) => point && point.ts)
+        .slice()
+        .sort((a, b) => new Date(a.ts) - new Date(b.ts));
+      const totals = {
+        solarKwh: 0,
+        batteryChargeKwh: 0,
+        batteryDischargeKwh: 0
+      };
+
+      for (let index = 1; index < sorted.length; index += 1) {
+        const previous = sorted[index - 1];
+        const current = sorted[index];
+        const previousTime = new Date(previous.ts).getTime();
+        const currentTime = new Date(current.ts).getTime();
+        const hours = (currentTime - previousTime) / 3600000;
+
+        if (!Number.isFinite(hours) || hours <= 0 || hours > 0.25) continue;
+
+        const solarKw = Number.isFinite(previous.solar_kw) ? previous.solar_kw : null;
+        const batteryKw = Number.isFinite(previous.battery_kw) ? previous.battery_kw : null;
+
+        if (solarKw !== null && solarKw > 0) {
+          totals.solarKwh += solarKw * hours;
+        }
+        if (batteryKw !== null && batteryKw < 0) {
+          totals.batteryChargeKwh += Math.abs(batteryKw) * hours;
+        }
+        if (batteryKw !== null && batteryKw > 0) {
+          totals.batteryDischargeKwh += batteryKw * hours;
+        }
+      }
+
+      return totals;
+    }
+
+    function formatKwh(value) {
+      return Number.isFinite(value) ? `${value.toFixed(1)} kWh` : "-- kWh";
+    }
+
+    function updateEnergyTotals() {
+      const totals = calculateEnergyTotals(historyPoints);
+      els.solarKwhToday.textContent = formatKwh(totals.solarKwh);
+      els.batteryChargeKwhToday.textContent = formatKwh(totals.batteryChargeKwh);
+      els.batteryDischargeKwhToday.textContent = formatKwh(totals.batteryDischargeKwh);
     }
 
     function table(headers, rows) {
