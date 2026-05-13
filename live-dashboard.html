@@ -490,6 +490,10 @@
       background: var(--legend-color);
     }
 
+    .mobile-flow {
+      display: none;
+    }
+
     @media (max-width: 1040px) {
       .stage {
         min-height: 820px;
@@ -522,27 +526,13 @@
         min-height: auto;
         display: grid;
         grid-template-areas:
+          "mobileflow"
           "solar"
-          "factory"
           "battery"
           "balance"
           "grid";
         gap: 10px;
         place-items: stretch;
-      }
-
-      .factory {
-        grid-area: factory;
-        position: relative;
-        width: min(64vw, 260px);
-        min-width: 0;
-        justify-self: center;
-        margin: 4px 0;
-      }
-
-      .ems-core {
-        width: 66px;
-        height: 66px;
       }
 
       .device {
@@ -577,6 +567,76 @@
 
       .connector {
         display: none;
+      }
+
+      .factory {
+        display: none;
+      }
+
+      .mobile-flow {
+        grid-area: mobileflow;
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.94);
+      }
+
+      .mini-factory {
+        position: relative;
+        width: min(56vw, 220px);
+        justify-self: center;
+        aspect-ratio: 1.45;
+        display: grid;
+        place-items: center;
+      }
+
+      .mini-factory svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 10px 14px rgba(38, 52, 85, 0.12));
+      }
+
+      .mini-core {
+        position: absolute;
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: linear-gradient(145deg, #6277ee, #3447be);
+        border: 6px solid rgba(255, 255, 255, 0.72);
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+      }
+
+      .mini-flow-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .mini-flow-item {
+        min-height: 54px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .mini-flow-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .mini-flow-item strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 0.95rem;
       }
 
       .state-strip {
@@ -652,6 +712,36 @@
         <div class="connector battery horizontal" id="batteryFlow"><div class="track"></div></div>
         <div class="connector load horizontal" id="loadFlow"><div class="track"></div></div>
         <div class="connector grid vertical" id="gridFlow"><div class="track"></div></div>
+
+        <section class="mobile-flow" aria-label="Compact energy flow">
+          <div class="mini-factory" aria-hidden="true">
+            <svg viewBox="0 0 460 300">
+              <defs>
+                <linearGradient id="miniWall" x1="0" x2="1" y1="0" y2="1">
+                  <stop stop-color="#eef3fb"></stop>
+                  <stop offset="1" stop-color="#d6deec"></stop>
+                </linearGradient>
+                <linearGradient id="miniRoof" x1="0" x2="1">
+                  <stop stop-color="#74839d"></stop>
+                  <stop offset="1" stop-color="#4e5d75"></stop>
+                </linearGradient>
+              </defs>
+              <path d="M76 260V108l89 51v-51l93 53v-60l126 71v88H76Z" fill="url(#miniWall)" stroke="#c6cfdd" stroke-width="4"></path>
+              <path d="M66 109l101 58v-52l93 53v-61l133 76" fill="none" stroke="url(#miniRoof)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path>
+              <rect x="109" y="195" width="48" height="65" rx="3" fill="#9badc8"></rect>
+              <rect x="195" y="202" width="42" height="28" rx="4" fill="#ffffff" opacity="0.9"></rect>
+              <rect x="258" y="202" width="42" height="28" rx="4" fill="#ffffff" opacity="0.9"></rect>
+              <rect x="321" y="202" width="42" height="28" rx="4" fill="#ffffff" opacity="0.9"></rect>
+            </svg>
+            <div class="mini-core">EMS</div>
+          </div>
+          <div class="mini-flow-grid">
+            <div class="mini-flow-item"><span>Solar</span><strong id="mobileSolar">-- kW</strong></div>
+            <div class="mini-flow-item"><span>Grid</span><strong id="mobileGrid">-- kW</strong></div>
+            <div class="mini-flow-item"><span>Battery</span><strong id="mobileBattery">-- kW</strong></div>
+            <div class="mini-flow-item"><span>Factory</span><strong id="mobileLoad">-- kW</strong></div>
+          </div>
+        </section>
 
         <article class="device top" tabindex="0">
           <div class="device-title" style="color: var(--solar);">
@@ -785,6 +875,10 @@
     };
     els.historyChart = document.getElementById("historyChart");
     els.chartStatus = document.getElementById("chartStatus");
+    els.mobileSolar = document.getElementById("mobileSolar");
+    els.mobileGrid = document.getElementById("mobileGrid");
+    els.mobileBattery = document.getElementById("mobileBattery");
+    els.mobileLoad = document.getElementById("mobileLoad");
 
     let latestState = null;
     let historyPoints = [];
@@ -969,6 +1063,10 @@
       els.calculatedLoad.textContent = formatKw(calculatedLoadKw, 1);
       els.shadowAction.textContent = control.last_action || "--";
       els.lastPoll.textContent = state.last_poll ? new Date(state.last_poll).toLocaleTimeString() : "--";
+      els.mobileSolar.textContent = formatKw(solarKw, 1);
+      els.mobileGrid.textContent = formatKw(gridKw, 1);
+      els.mobileBattery.textContent = formatKw(batteryKw, 1);
+      els.mobileLoad.textContent = formatKw(calculatedLoadKw, 1);
 
       els.inverterTable.innerHTML = table(
         ["Unit", "Status", "Production", "Last read"],
