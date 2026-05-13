@@ -575,21 +575,27 @@
 
       .mobile-flow {
         grid-area: mobileflow;
-        display: grid;
-        gap: 8px;
-        padding: 10px;
+        display: block;
+        position: relative;
+        min-height: min(58vh, 430px);
+        padding: 8px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.94);
+        overflow: hidden;
       }
 
       .mini-factory {
-        position: relative;
-        width: min(56vw, 220px);
-        justify-self: center;
-        aspect-ratio: 1.45;
+        position: absolute;
+        z-index: 2;
+        top: 50%;
+        left: 50%;
+        width: min(38vw, 170px);
+        min-width: 128px;
+        aspect-ratio: 1.38;
         display: grid;
         place-items: center;
+        transform: translate(-50%, -50%);
       }
 
       .mini-factory svg {
@@ -600,8 +606,8 @@
 
       .mini-core {
         position: absolute;
-        width: 54px;
-        height: 54px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
         display: grid;
         place-items: center;
@@ -613,18 +619,16 @@
         letter-spacing: 0.06em;
       }
 
-      .mini-flow-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
-
       .mini-flow-item {
-        min-height: 54px;
-        padding: 8px;
+        position: absolute;
+        z-index: 4;
+        width: min(39vw, 150px);
+        min-height: 58px;
+        padding: 8px 9px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
+        box-shadow: 0 10px 24px rgba(31, 41, 55, 0.08);
       }
 
       .mini-flow-item span {
@@ -637,6 +641,68 @@
         display: block;
         margin-top: 3px;
         font-size: 0.95rem;
+      }
+
+      .mini-flow-item.solar {
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .mini-flow-item.battery {
+        top: 50%;
+        left: 8px;
+        transform: translateY(-50%);
+      }
+
+      .mini-flow-item.factory-load {
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+      }
+
+      .mini-flow-item.grid-meter {
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .mini-connector {
+        position: absolute;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .mini-connector.vertical {
+        left: 50%;
+        width: 7px;
+        transform: translateX(-50%);
+      }
+
+      .mini-connector.horizontal {
+        top: 50%;
+        height: 7px;
+        transform: translateY(-50%);
+      }
+
+      .mini-connector.solar {
+        top: 70px;
+        height: calc(50% - 116px);
+      }
+
+      .mini-connector.grid {
+        bottom: 70px;
+        height: calc(50% - 116px);
+      }
+
+      .mini-connector.battery {
+        left: min(39vw, 158px);
+        width: calc(50% - min(39vw, 158px) - 58px);
+      }
+
+      .mini-connector.load {
+        right: min(39vw, 158px);
+        width: calc(50% - min(39vw, 158px) - 58px);
       }
 
       .state-strip {
@@ -714,6 +780,10 @@
         <div class="connector grid vertical" id="gridFlow"><div class="track"></div></div>
 
         <section class="mobile-flow" aria-label="Compact energy flow">
+          <div class="mini-connector solar vertical"><div class="track"></div></div>
+          <div class="mini-connector battery horizontal" id="mobileBatteryFlow"><div class="track"></div></div>
+          <div class="mini-connector load horizontal"><div class="track"></div></div>
+          <div class="mini-connector grid vertical" id="mobileGridFlow"><div class="track"></div></div>
           <div class="mini-factory" aria-hidden="true">
             <svg viewBox="0 0 460 300">
               <defs>
@@ -735,12 +805,10 @@
             </svg>
             <div class="mini-core">EMS</div>
           </div>
-          <div class="mini-flow-grid">
-            <div class="mini-flow-item"><span>Solar</span><strong id="mobileSolar">-- kW</strong></div>
-            <div class="mini-flow-item"><span>Grid</span><strong id="mobileGrid">-- kW</strong></div>
-            <div class="mini-flow-item"><span>Battery</span><strong id="mobileBattery">-- kW</strong></div>
-            <div class="mini-flow-item"><span>Factory</span><strong id="mobileLoad">-- kW</strong></div>
-          </div>
+          <div class="mini-flow-item solar"><span>Solar</span><strong id="mobileSolar">-- kW</strong></div>
+          <div class="mini-flow-item battery"><span>Battery</span><strong id="mobileBattery">-- kW</strong></div>
+          <div class="mini-flow-item factory-load"><span>Factory</span><strong id="mobileLoad">-- kW</strong></div>
+          <div class="mini-flow-item grid-meter"><span>Grid</span><strong id="mobileGrid">-- kW</strong></div>
         </section>
 
         <article class="device top" tabindex="0">
@@ -879,6 +947,8 @@
     els.mobileGrid = document.getElementById("mobileGrid");
     els.mobileBattery = document.getElementById("mobileBattery");
     els.mobileLoad = document.getElementById("mobileLoad");
+    els.mobileBatteryFlow = document.getElementById("mobileBatteryFlow");
+    els.mobileGridFlow = document.getElementById("mobileGridFlow");
 
     let latestState = null;
     let historyPoints = [];
@@ -1054,6 +1124,8 @@
       els.mobileGrid.textContent = formatKw(gridKw, 1);
       els.mobileBattery.textContent = formatKw(batteryKw, 1);
       els.mobileLoad.textContent = formatKw(calculatedLoadKw, 1);
+      setFlow(els.mobileBatteryFlow, Math.abs(batteryKw || 0), maxFlow, "var(--battery)", (batteryKw || 0) < 0);
+      setFlow(els.mobileGridFlow, Math.abs(gridKw || 0), maxFlow, "var(--grid)", (gridKw || 0) > 0);
 
       els.inverterTable.innerHTML = table(
         ["Unit", "Status", "Production", "Last read"],
