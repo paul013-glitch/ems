@@ -433,6 +433,63 @@
       border-bottom: 0;
     }
 
+    .chart-panel {
+      margin-top: 12px;
+      padding: 14px;
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .chart-head h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .chart-head span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 230px;
+    }
+
+    #historyChart {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-item::before {
+      content: "";
+      width: 18px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--legend-color);
+    }
+
     @media (max-width: 1040px) {
       .stage {
         min-height: 820px;
@@ -545,6 +602,18 @@
 
       .device.left .hover-panel {
         transform: none;
+      }
+
+      .chart-panel {
+        padding: 10px;
+      }
+
+      .chart-head {
+        display: grid;
+      }
+
+      .chart-wrap {
+        height: 220px;
       }
     }
 
@@ -667,6 +736,21 @@
         <div class="state-pill"><span>Battery setpoint</span><strong id="batteryState">--</strong></div>
       </div>
     </section>
+
+    <section class="panel chart-panel" aria-label="Today power history">
+      <div class="chart-head">
+        <h2>Today readout history</h2>
+        <span id="chartStatus">Waiting for local samples</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="historyChart"></canvas>
+      </div>
+      <div class="legend">
+        <span class="legend-item" style="--legend-color: var(--solar);">Solar</span>
+        <span class="legend-item" style="--legend-color: var(--grid);">Grid</span>
+        <span class="legend-item" style="--legend-color: var(--battery);">Battery</span>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -699,8 +783,11 @@
       loadFlow: document.getElementById("loadFlow"),
       gridFlow: document.getElementById("gridFlow")
     };
+    els.historyChart = document.getElementById("historyChart");
+    els.chartStatus = document.getElementById("chartStatus");
 
     let latestState = null;
+    let historyPoints = [];
 
     function numberOrNull(value) {
       return Number.isFinite(value) ? value : null;
@@ -727,6 +814,108 @@
       el.style.setProperty("--flow-speed", `${Math.min(1.4, Math.max(0.38, 1.4 - ratio * 0.95))}s`);
     }
 
+    function todayBounds() {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return { start: start.getTime(), end: end.getTime() };
+    }
+
+    function addLocalHistoryPoint(state) {
+      const ts = state.last_poll || new Date().toISOString();
+      const exists = historyPoints.some((point) => point.ts === ts);
+      if (exists) return;
+      historyPoints.push({
+        ts,
+        solar_kw: state.totals?.solar_production_kw ?? null,
+        grid_kw: state.devices?.grid_meter?.values?.current_kw ?? null,
+        battery_kw: state.totals?.battery_power_kw ?? null
+      });
+      historyPoints = historyPoints.slice(-3000);
+    }
+
+    function drawHistoryChart() {
+      const canvas = els.historyChart;
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = Math.max(180, Math.floor(rect.height));
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const pad = { left: 48, right: 14, top: 16, bottom: 30 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+      const { start, end } = todayBounds();
+      const series = [
+        { key: "solar_kw", color: "#d9981f" },
+        { key: "grid_kw", color: "#506bd6" },
+        { key: "battery_kw", color: "#258d66" }
+      ];
+      const values = historyPoints.flatMap((point) => series.map((line) => point[line.key])).filter(Number.isFinite);
+      const maxAbs = Math.max(10, ...values.map((value) => Math.abs(value)));
+      const yMin = -maxAbs;
+      const yMax = maxAbs;
+
+      function xFor(ts) {
+        return pad.left + ((new Date(ts).getTime() - start) / (end - start)) * plotW;
+      }
+
+      function yFor(value) {
+        return pad.top + ((yMax - value) / (yMax - yMin)) * plotH;
+      }
+
+      ctx.strokeStyle = "#dfe5ef";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#69748a";
+      ctx.font = "12px system-ui, sans-serif";
+
+      [0, 6, 12, 18, 24].forEach((hour) => {
+        const x = pad.left + (hour / 24) * plotW;
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + plotH);
+        ctx.stroke();
+        ctx.fillText(`${String(hour).padStart(2, "0")}:00`, x - 16, height - 8);
+      });
+
+      [-maxAbs, 0, maxAbs].forEach((value) => {
+        const y = yFor(value);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + plotW, y);
+        ctx.stroke();
+        ctx.fillText(`${value.toFixed(0)} kW`, 4, y + 4);
+      });
+
+      series.forEach((line) => {
+        const points = historyPoints
+          .filter((point) => Number.isFinite(point[line.key]))
+          .map((point) => ({ x: xFor(point.ts), y: yFor(point[line.key]) }))
+          .filter((point) => point.x >= pad.left && point.x <= pad.left + plotW);
+
+        if (!points.length) return;
+
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.stroke();
+      });
+
+      els.chartStatus.textContent = historyPoints.length
+        ? `${historyPoints.length} local samples today`
+        : "Waiting for local samples";
+    }
+
     function table(headers, rows) {
       if (!rows.length) return "<span>No devices reported yet.</span>";
       return `
@@ -739,6 +928,7 @@
 
     function render(state) {
       latestState = state;
+      addLocalHistoryPoint(state);
       const devices = state.devices || {};
       const totals = state.totals || {};
       const control = state.ems_control || {};
@@ -805,6 +995,7 @@
       setFlow(els.batteryFlow, Math.abs(batteryKw || 0), maxFlow, "var(--battery)", (batteryKw || 0) < 0);
       setFlow(els.gridFlow, Math.abs(gridKw || 0), maxFlow, "var(--grid)", (gridKw || 0) > 0);
       setFlow(els.loadFlow, Math.abs(calculatedLoadKw || 0), maxFlow, "var(--load)", false);
+      drawHistoryChart();
     }
 
     async function fetchState() {
@@ -832,6 +1023,7 @@
 
     fetchState();
     setInterval(fetchState, 3000);
+    window.addEventListener("resize", drawHistoryChart);
   </script>
 </body>
 </html>
