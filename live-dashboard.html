@@ -432,78 +432,124 @@
 
     @media (max-width: 760px) {
       .app {
-        width: min(100vw - 20px, 720px);
-        padding-top: 14px;
+        width: min(100vw - 16px, 720px);
+        padding: 10px 0 12px;
       }
 
       .topbar {
         display: grid;
+        gap: 10px;
       }
 
       .transport {
         min-width: 0;
+        justify-content: space-between;
       }
 
       .stage {
-        padding: 14px;
-        min-height: 950px;
+        padding: 10px;
+        min-height: auto;
+        overflow: visible;
       }
 
       .diagram {
-        min-height: 830px;
+        min-height: auto;
+        display: grid;
+        grid-template-areas:
+          "solar"
+          "factory"
+          "battery"
+          "balance"
+          "grid";
+        gap: 10px;
+        place-items: stretch;
       }
 
       .factory {
-        width: min(72vw, 320px);
-        min-width: 230px;
+        grid-area: factory;
+        position: relative;
+        width: min(64vw, 260px);
+        min-width: 0;
+        justify-self: center;
+        margin: 4px 0;
+      }
+
+      .ems-core {
+        width: 66px;
+        height: 66px;
       }
 
       .device {
-        width: min(46vw, 184px);
+        position: relative;
+        inset: auto;
+        width: 100%;
         min-height: 124px;
+        transform: none;
       }
 
       .device.top {
-        top: 12px;
+        grid-area: solar;
+        top: auto;
       }
 
       .device.left {
-        left: 0;
-        top: 43%;
+        grid-area: battery;
+        left: auto;
+        top: auto;
       }
 
       .device.right {
-        right: 0;
-        top: 43%;
+        grid-area: balance;
+        right: auto;
+        top: auto;
       }
 
       .device.bottom {
-        bottom: 120px;
+        grid-area: grid;
+        bottom: auto;
       }
 
-      .connector.solar {
-        top: 145px;
-      }
-
-      .connector.grid {
-        bottom: 246px;
-      }
-
-      .connector.battery {
-        left: 166px;
-        width: calc(50% - 176px);
-      }
-
-      .connector.load {
-        right: 166px;
-        width: calc(50% - 176px);
+      .connector {
+        display: none;
       }
 
       .state-strip {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        margin-top: 10px;
         grid-template-columns: repeat(2, 1fr);
-        left: 14px;
-        right: 14px;
-        bottom: 14px;
+      }
+
+      .hover-panel {
+        position: static;
+        width: 100%;
+        max-height: 260px;
+        margin-top: 10px;
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: none;
+      }
+
+      .device.left .hover-panel {
+        transform: none;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .state-strip {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
       }
     }
   </style>
