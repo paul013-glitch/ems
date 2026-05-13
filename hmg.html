@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HMG Live Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #182033;
+      --muted: #69748a;
+      --line: #dfe5ef;
+      --solar: #f3b33d;
+      --battery: #28a071;
+      --grid: #5872d8;
+      --load: #d15b5b;
+      --ems: #4057c8;
+      --good: #18845f;
+      --bad: #c64646;
+      --shadow: 0 18px 55px rgba(31, 41, 55, 0.11);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(247, 248, 251, 0.94)),
+        radial-gradient(circle at 18% 10%, rgba(243, 179, 61, 0.18), transparent 25rem),
+        radial-gradient(circle at 85% 82%, rgba(40, 160, 113, 0.12), transparent 28rem),
+        var(--bg);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1420px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 14px 0 16px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 1.8vw, 1.9rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .transport {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 270px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+    }
+
+    .transport button {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--ems);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-weight: 900;
+      box-shadow: 0 10px 24px rgba(64, 87, 200, 0.24);
+    }
+
+    .transport button.paused {
+      background: var(--good);
+    }
+
+    .transport span {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .stage {
+      position: relative;
+      min-height: calc(100vh - 108px);
+      padding: 14px;
+      overflow: visible;
+    }
+
+    .diagram {
+      position: relative;
+      min-height: calc(100vh - 148px);
+      display: grid;
+      place-items: center;
+    }
+
+    .factory {
+      position: relative;
+      z-index: 2;
+      width: min(25vw, 270px);
+      min-width: 210px;
+      aspect-ratio: 1.16;
+      display: grid;
+      place-items: center;
+    }
+
+    .factory svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 18px 22px rgba(38, 52, 85, 0.13));
+    }
+
+    .ems-core {
+      position: absolute;
+      z-index: 3;
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #6277ee, #3447be);
+      border: 8px solid rgba(255, 255, 255, 0.72);
+      box-shadow: 0 16px 36px rgba(52, 71, 190, 0.3);
+    }
+
+    .ems-core span {
+      display: block;
+      font-weight: 800;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+    }
+
+    .device {
+      position: absolute;
+      z-index: 4;
+      width: 194px;
+      min-height: 116px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 34px rgba(31, 41, 55, 0.1);
+    }
+
+    .device.top {
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device.left {
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.right {
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.bottom {
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .device-title svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 2.3;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      color: var(--good);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .badge.offline {
+      color: var(--bad);
+    }
+
+    .device-readout {
+      margin-top: 8px;
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .device-readout strong {
+      color: var(--ink);
+      font-size: 1.05rem;
+    }
+
+    .connector {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .connector.solar {
+      top: 132px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 146px);
+      min-height: 96px;
+      transform: translateX(-50%);
+    }
+
+    .connector.grid {
+      bottom: 132px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 146px);
+      min-height: 104px;
+      transform: translateX(-50%);
+    }
+
+    .connector.battery {
+      top: 50%;
+      left: 208px;
+      width: calc(50% - 226px);
+      min-width: 94px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .connector.load {
+      top: 50%;
+      right: 208px;
+      width: calc(50% - 226px);
+      min-width: 94px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(105, 116, 138, 0.14);
+      overflow: hidden;
+    }
+
+    .track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: repeating-linear-gradient(
+        var(--angle, 0deg),
+        transparent 0 16px,
+        var(--flow-color, var(--ems)) 16px 28px,
+        transparent 28px 44px
+      );
+      opacity: var(--flow-opacity, 0.6);
+      animation: moveFlow var(--flow-speed, 1.1s) linear infinite;
+      animation-direction: var(--flow-direction, normal);
+    }
+
+    .connector.horizontal .track::after {
+      --angle: 90deg;
+      --flow-x-end: 44px;
+      --flow-y-end: 0;
+    }
+
+    .connector.vertical .track::after {
+      --angle: 0deg;
+      --flow-x-end: 0;
+      --flow-y-end: 44px;
+    }
+
+    .connector.reverse .track::after {
+      animation-direction: reverse;
+    }
+
+    @keyframes moveFlow {
+      from {
+        transform: translate(0, 0);
+      }
+
+      to {
+        transform: translate(var(--flow-x-end, 0), var(--flow-y-end, 36px));
+      }
+    }
+
+    .state-strip {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      z-index: 5;
+    }
+
+    .state-pill {
+      min-height: 56px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+
+    .state-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .state-pill strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1rem;
+    }
+
+    .hover-panel {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 10px);
+      left: 50%;
+      width: min(520px, calc(100vw - 48px));
+      max-height: 340px;
+      overflow: auto;
+      transform: translateX(-50%);
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 46px rgba(31, 41, 55, 0.16);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.12s ease, visibility 0.12s ease;
+    }
+
+    .device:hover .hover-panel,
+    .device:focus-within .hover-panel {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .device.left .hover-panel {
+      left: 0;
+      transform: none;
+    }
+
+    .hover-panel table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    .hover-panel th,
+    .hover-panel td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .hover-panel th {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .hover-panel tr:last-child td {
+      border-bottom: 0;
+    }
+
+    @media (max-width: 1040px) {
+      .stage {
+        min-height: 820px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100vw - 20px, 720px);
+        padding-top: 14px;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .transport {
+        min-width: 0;
+      }
+
+      .stage {
+        padding: 14px;
+        min-height: 950px;
+      }
+
+      .diagram {
+        min-height: 830px;
+      }
+
+      .factory {
+        width: min(72vw, 320px);
+        min-width: 230px;
+      }
+
+      .device {
+        width: min(46vw, 184px);
+        min-height: 124px;
+      }
+
+      .device.top {
+        top: 12px;
+      }
+
+      .device.left {
+        left: 0;
+        top: 43%;
+      }
+
+      .device.right {
+        right: 0;
+        top: 43%;
+      }
+
+      .device.bottom {
+        bottom: 120px;
+      }
+
+      .connector.solar {
+        top: 145px;
+      }
+
+      .connector.grid {
+        bottom: 246px;
+      }
+
+      .connector.battery {
+        left: 166px;
+        width: calc(50% - 176px);
+      }
+
+      .connector.load {
+        right: 166px;
+        width: calc(50% - 176px);
+      }
+
+      .state-strip {
+        grid-template-columns: repeat(2, 1fr);
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>HMG Live Dashboard</h1>
+        <p class="subtitle">Public read-only dashboard fed by the local Python polling loop.</p>
+      </div>
+      <div class="transport">
+        <button id="toggleLoop" type="button" aria-label="Cloud telemetry status" disabled>--</button>
+        <span id="loopState">Loading cloud telemetry...</span>
+      </div>
+    </header>
+
+    <section class="panel stage" aria-label="EMS live energy flow">
+      <div class="diagram">
+        <div class="connector solar vertical" id="solarFlow"><div class="track"></div></div>
+        <div class="connector battery horizontal" id="batteryFlow"><div class="track"></div></div>
+        <div class="connector load horizontal" id="loadFlow"><div class="track"></div></div>
+        <div class="connector grid vertical" id="gridFlow"><div class="track"></div></div>
+
+        <article class="device top" tabindex="0">
+          <div class="device-title" style="color: var(--solar);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 14h16l-2-7H6l-2 7Z"></path><path d="M4 14l-1 4h18l-1-4"></path><path d="M8 7l-1 7"></path><path d="M16 7l1 7"></path><path d="M12 7v7"></path></svg>
+            Solar inverters
+            <span id="solarBadge" class="badge offline">Offline</span>
+          </div>
+          <div class="device-readout">
+            <span>Total production <strong id="solarPower">-- kW</strong></span>
+            <span>EMS setpoint <strong id="solarSetpoint">--%</strong></span>
+            <span>Online units <strong id="solarOnline">-- / --</strong></span>
+          </div>
+          <div class="hover-panel" id="inverterTable"></div>
+        </article>
+
+        <article class="device left" tabindex="0">
+          <div class="device-title" style="color: var(--battery);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="4" y="7" width="15" height="10" rx="2"></rect><path d="M19 10h2v4h-2"></path><path d="M8 11h4"></path></svg>
+            Batteries
+            <span id="batteryBadge" class="badge offline">Offline</span>
+          </div>
+          <div class="device-readout">
+            <span>Average SOC <strong id="batterySoc">--%</strong></span>
+            <span>Total power <strong id="batteryPower">-- kW</strong></span>
+            <span>EMS setpoint <strong id="batterySetpoint">--%</strong></span>
+            <span>Online units <strong id="batteryOnline">-- / --</strong></span>
+          </div>
+          <div class="hover-panel" id="batteryTable"></div>
+        </article>
+
+        <article class="device right">
+          <div class="device-title" style="color: var(--load);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V9l6 4V9l8 5v7"></path><path d="M9 17h1"></path><path d="M14 17h1"></path></svg>
+            Calculated load
+          </div>
+          <div class="device-readout">
+            <span>Factory usage <strong id="calculatedLoad">-- kW</strong></span>
+            <span>Formula <strong id="loadFormula">PV + grid + battery</strong></span>
+            <span>Shadow EMS <strong id="shadowAction">--</strong></span>
+            <span>Last poll <strong id="lastPoll">--</strong></span>
+          </div>
+        </article>
+
+        <article class="device bottom">
+          <div class="device-title" style="color: var(--grid);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v18"></path><path d="M5 21h14"></path><path d="M7 8h10"></path><path d="M9 8l-3 13"></path><path d="M15 8l3 13"></path><path d="M9 4h6"></path></svg>
+            Import / export meter
+            <span id="gridBadge" class="badge offline">Offline</span>
+          </div>
+          <div class="device-readout">
+            <span>Signed power <strong id="gridPower">-- kW</strong></span>
+            <span>Direction <strong id="gridDirection">--</strong></span>
+          </div>
+        </article>
+
+        <div class="factory" aria-hidden="true">
+          <svg viewBox="0 0 460 395" role="img">
+            <defs>
+              <linearGradient id="wall" x1="0" x2="1" y1="0" y2="1">
+                <stop stop-color="#eef3fb"></stop>
+                <stop offset="1" stop-color="#d6deec"></stop>
+              </linearGradient>
+              <linearGradient id="roof" x1="0" x2="1">
+                <stop stop-color="#74839d"></stop>
+                <stop offset="1" stop-color="#4e5d75"></stop>
+              </linearGradient>
+            </defs>
+            <path d="M76 355V167l89 51v-51l93 53v-60l126 71v124H76Z" fill="url(#wall)" stroke="#c6cfdd" stroke-width="4"></path>
+            <path d="M66 168l101 58v-52l93 53v-61l133 76" fill="none" stroke="url(#roof)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></path>
+            <rect x="109" y="266" width="48" height="89" rx="3" fill="#9badc8"></rect>
+            <rect x="195" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+            <rect x="258" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+            <rect x="321" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+            <rect x="195" y="325" width="168" height="30" rx="4" fill="#74839d"></rect>
+          </svg>
+          <div class="ems-core"><span>EMS</span></div>
+        </div>
+      </div>
+
+      <div class="state-strip" aria-label="Current readout state">
+        <div class="state-pill"><span>Loop state</span><strong id="loopPill">--</strong></div>
+        <div class="state-pill"><span>Grid state</span><strong id="gridState">--</strong></div>
+        <div class="state-pill"><span>Solar setpoint</span><strong id="solarState">--</strong></div>
+        <div class="state-pill"><span>Battery setpoint</span><strong id="batteryState">--</strong></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const els = {
+      toggleLoop: document.getElementById("toggleLoop"),
+      loopState: document.getElementById("loopState"),
+      loopPill: document.getElementById("loopPill"),
+      gridPower: document.getElementById("gridPower"),
+      gridDirection: document.getElementById("gridDirection"),
+      gridBadge: document.getElementById("gridBadge"),
+      gridState: document.getElementById("gridState"),
+      solarPower: document.getElementById("solarPower"),
+      solarSetpoint: document.getElementById("solarSetpoint"),
+      solarOnline: document.getElementById("solarOnline"),
+      solarBadge: document.getElementById("solarBadge"),
+      solarState: document.getElementById("solarState"),
+      batterySoc: document.getElementById("batterySoc"),
+      batteryPower: document.getElementById("batteryPower"),
+      batterySetpoint: document.getElementById("batterySetpoint"),
+      batteryOnline: document.getElementById("batteryOnline"),
+      batteryBadge: document.getElementById("batteryBadge"),
+      batteryState: document.getElementById("batteryState"),
+      calculatedLoad: document.getElementById("calculatedLoad"),
+      loadFormula: document.getElementById("loadFormula"),
+      shadowAction: document.getElementById("shadowAction"),
+      lastPoll: document.getElementById("lastPoll"),
+      inverterTable: document.getElementById("inverterTable"),
+      batteryTable: document.getElementById("batteryTable"),
+      solarFlow: document.getElementById("solarFlow"),
+      batteryFlow: document.getElementById("batteryFlow"),
+      loadFlow: document.getElementById("loadFlow"),
+      gridFlow: document.getElementById("gridFlow")
+    };
+
+    let latestState = null;
+
+    function numberOrNull(value) {
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function formatKw(value, digits = 3) {
+      return Number.isFinite(value) ? `${value.toFixed(digits)} kW` : "-- kW";
+    }
+
+    function formatPercent(value) {
+      return Number.isFinite(value) ? `${value.toFixed(1)}%` : "--%";
+    }
+
+    function setBadge(el, online, text) {
+      el.classList.toggle("offline", !online);
+      el.textContent = text || (online ? "Online" : "Offline");
+    }
+
+    function setFlow(el, amount, max, color, reverse = false) {
+      const ratio = max > 0 ? Math.min(1, Math.max(0, amount / max)) : 0;
+      el.classList.toggle("reverse", reverse);
+      el.style.setProperty("--flow-color", color);
+      el.style.setProperty("--flow-opacity", ratio > 0.01 ? String(0.28 + ratio * 0.72) : "0");
+      el.style.setProperty("--flow-speed", `${Math.min(1.4, Math.max(0.38, 1.4 - ratio * 0.95))}s`);
+    }
+
+    function table(headers, rows) {
+      if (!rows.length) return "<span>No devices reported yet.</span>";
+      return `
+        <table>
+          <thead><tr>${headers.map((header) => `<th>${header}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table>
+      `;
+    }
+
+    function render(state) {
+      latestState = state;
+      const devices = state.devices || {};
+      const totals = state.totals || {};
+      const control = state.ems_control || {};
+      const grid = devices.grid_meter || {};
+      const gridKw = numberOrNull(grid.values?.current_kw);
+      const solarKw = numberOrNull(totals.solar_production_kw);
+      const batteryKw = numberOrNull(totals.battery_power_kw);
+      const batterySoc = numberOrNull(totals.battery_average_soc_percent);
+      const calculatedLoadKw = numberOrNull(totals.calculated_load_kw);
+      const maxFlow = Math.max(Math.abs(gridKw || 0), Math.abs(solarKw || 0), Math.abs(batteryKw || 0), Math.abs(calculatedLoadKw || 0), 1);
+      const inverters = Object.values(devices).filter((device) => device.type === "growatt_max").sort((a, b) => a.id.localeCompare(b.id));
+      const batteries = Object.values(devices).filter((device) => device.type === "clou_battery").sort((a, b) => a.id.localeCompare(b.id));
+
+      els.toggleLoop.textContent = state.cloud_received_at ? "OK" : "--";
+      els.toggleLoop.classList.toggle("paused", false);
+      els.loopState.textContent = state.cloud_received_at
+        ? `Cloud updated ${new Date(state.cloud_received_at).toLocaleTimeString()}`
+        : "Waiting for cloud telemetry";
+      els.loopPill.textContent = state.cloud_received_at ? "Cloud live" : "Waiting";
+
+      els.gridPower.textContent = formatKw(gridKw);
+      els.gridDirection.textContent = Number.isFinite(gridKw) ? (gridKw >= 0 ? "Import" : "Export") : "--";
+      setBadge(els.gridBadge, Boolean(grid.online));
+      els.gridState.textContent = Number.isFinite(gridKw) ? `${gridKw >= 0 ? "Import" : "Export"} ${formatKw(Math.abs(gridKw))}` : "--";
+
+      els.solarPower.textContent = formatKw(solarKw);
+      els.solarSetpoint.textContent = Number.isFinite(control.solar_setpoint_percent) ? `${control.solar_setpoint_percent}%` : "--%";
+      els.solarOnline.textContent = `${totals.inverters_online ?? 0} / ${totals.inverters_count ?? inverters.length}`;
+      setBadge(els.solarBadge, (totals.inverters_online || 0) > 0, `${totals.inverters_online ?? 0} online`);
+      els.solarState.textContent = Number.isFinite(control.solar_setpoint_percent) ? `${control.solar_setpoint_percent}%` : "--";
+
+      els.batterySoc.textContent = formatPercent(batterySoc);
+      els.batteryPower.textContent = formatKw(batteryKw, 1);
+      els.batterySetpoint.textContent = Number.isFinite(control.battery_setpoint_percent) ? `${control.battery_setpoint_percent}%` : "--%";
+      els.batteryOnline.textContent = `${totals.batteries_online ?? 0} / ${totals.batteries_count ?? batteries.length}`;
+      setBadge(els.batteryBadge, (totals.batteries_online || 0) > 0, `${totals.batteries_online ?? 0} online`);
+      els.batteryState.textContent = Number.isFinite(control.battery_setpoint_percent) ? `${control.battery_setpoint_percent}%` : "--";
+
+      els.calculatedLoad.textContent = formatKw(calculatedLoadKw, 1);
+      els.loadFormula.textContent = `${formatKw(solarKw, 1)} + ${formatKw(gridKw, 1)} + ${formatKw(batteryKw, 1)}`;
+      els.shadowAction.textContent = control.last_action || "--";
+      els.lastPoll.textContent = state.last_poll ? new Date(state.last_poll).toLocaleTimeString() : "--";
+
+      els.inverterTable.innerHTML = table(
+        ["Unit", "Status", "Production", "Last read"],
+        inverters.map((device) => [
+          device.values?.unit_id ?? device.id.replace("inverter_", ""),
+          device.online ? (device.values?.status || "online") : "offline",
+          formatKw(device.values?.production_kw),
+          device.last_success ? new Date(device.last_success).toLocaleTimeString() : "--"
+        ])
+      );
+
+      els.batteryTable.innerHTML = table(
+        ["Host", "SOC", "Power", "Status", "Last read"],
+        batteries.map((device) => [
+          device.values?.host || device.id.replace("battery_", ""),
+          formatPercent(device.values?.soc_percent),
+          formatKw(device.values?.power_kw, 1),
+          device.online ? (device.values?.status || "online") : "offline",
+          device.last_success ? new Date(device.last_success).toLocaleTimeString() : "--"
+        ])
+      );
+
+      setFlow(els.solarFlow, Math.abs(solarKw || 0), maxFlow, "var(--solar)", false);
+      setFlow(els.batteryFlow, Math.abs(batteryKw || 0), maxFlow, "var(--battery)", (batteryKw || 0) < 0);
+      setFlow(els.gridFlow, Math.abs(gridKw || 0), maxFlow, "var(--grid)", (gridKw || 0) > 0);
+      setFlow(els.loadFlow, Math.abs(calculatedLoadKw || 0), maxFlow, "var(--load)", false);
+    }
+
+    async function fetchState() {
+      try {
+        const response = await fetch("/api/telemetry", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        render(await response.json());
+      } catch (error) {
+        els.loopState.textContent = `Telemetry API unavailable: ${error.message}`;
+      }
+    }
+
+    fetchState();
+    setInterval(fetchState, 3000);
+  </script>
+</body>
+</html>

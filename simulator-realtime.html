@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EMS Realtime Simulator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #182033;
+      --muted: #69748a;
+      --line: #dfe5ef;
+      --solar: #f3b33d;
+      --battery: #28a071;
+      --grid: #5872d8;
+      --load: #d15b5b;
+      --ems: #4057c8;
+      --shadow: 0 18px 55px rgba(31, 41, 55, 0.11);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(247, 248, 251, 0.94)),
+        radial-gradient(circle at 18% 10%, rgba(243, 179, 61, 0.18), transparent 25rem),
+        radial-gradient(circle at 85% 82%, rgba(40, 160, 113, 0.12), transparent 28rem),
+        var(--bg);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1420px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 32px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 2.2vw, 2.35rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      max-width: 800px;
+    }
+
+    .status-card {
+      min-width: 230px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+      text-align: right;
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status-card strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.2rem;
+      line-height: 1.1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(540px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .controls,
+    .metrics,
+    .rules,
+    .setpoints {
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fff;
+      padding: 0 12px;
+      outline: none;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--ems);
+      outline: 3px solid rgba(64, 87, 200, 0.14);
+    }
+
+    .helper {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .metrics,
+    .rules {
+      margin-top: 18px;
+    }
+
+    .metric-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:last-child {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+
+    .metric strong {
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 760px;
+      padding: 22px;
+      overflow: hidden;
+    }
+
+    .diagram {
+      position: relative;
+      min-height: 650px;
+      display: grid;
+      place-items: center;
+    }
+
+    .factory {
+      position: relative;
+      z-index: 2;
+      width: min(30vw, 320px);
+      min-width: 240px;
+      aspect-ratio: 1.16;
+      display: grid;
+      place-items: center;
+    }
+
+    .factory svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 18px 22px rgba(38, 52, 85, 0.13));
+    }
+
+    .ems-core {
+      position: absolute;
+      z-index: 3;
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #6277ee, #3447be);
+      border: 8px solid rgba(255, 255, 255, 0.72);
+      box-shadow: 0 16px 36px rgba(52, 71, 190, 0.3);
+    }
+
+    .ems-core span {
+      display: block;
+      font-weight: 800;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+    }
+
+    .device {
+      position: absolute;
+      z-index: 4;
+      width: 180px;
+      min-height: 122px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 14px 34px rgba(31, 41, 55, 0.1);
+    }
+
+    .device.top {
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device.left {
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.right {
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .device.bottom {
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .device-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+
+    .device-title svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 2.3;
+    }
+
+    .device-readout {
+      margin-top: 10px;
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .device-readout strong {
+      color: var(--ink);
+      font-size: 1.05rem;
+    }
+
+    .setpoint {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    .setpoint strong {
+      display: block;
+      color: var(--ems);
+      margin-top: 2px;
+      font-size: 0.9rem;
+    }
+
+    .connector {
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .connector.solar {
+      top: 133px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 150px);
+      min-height: 118px;
+      transform: translateX(-50%);
+    }
+
+    .connector.grid {
+      bottom: 132px;
+      left: 50%;
+      width: 8px;
+      height: calc(50% - 150px);
+      min-height: 150px;
+      transform: translateX(-50%);
+    }
+
+    .connector.battery {
+      top: 50%;
+      left: 194px;
+      width: calc(50% - 214px);
+      min-width: 112px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .connector.load {
+      top: 50%;
+      right: 194px;
+      width: calc(50% - 214px);
+      min-width: 112px;
+      height: 8px;
+      transform: translateY(-50%);
+    }
+
+    .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(105, 116, 138, 0.14);
+      overflow: hidden;
+    }
+
+    .track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: repeating-linear-gradient(
+        var(--angle, 0deg),
+        transparent 0 16px,
+        var(--flow-color, var(--ems)) 16px 28px,
+        transparent 28px 44px
+      );
+      opacity: var(--flow-opacity, 0);
+      animation: moveFlow var(--flow-speed, 1.5s) linear infinite;
+      animation-direction: var(--flow-direction, normal);
+    }
+
+    .connector.horizontal .track::after {
+      --angle: 90deg;
+      --flow-x-end: 44px;
+      --flow-y-end: 0;
+    }
+
+    .connector.vertical .track::after {
+      --angle: 0deg;
+      --flow-x-end: 0;
+      --flow-y-end: 44px;
+    }
+
+    .connector.reverse .track::after {
+      animation-direction: reverse;
+    }
+
+    @keyframes moveFlow {
+      from {
+        transform: translate(0, 0);
+      }
+
+      to {
+        transform: translate(var(--flow-x-end, 0), var(--flow-y-end, 36px));
+      }
+    }
+
+    .state-strip {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      z-index: 5;
+    }
+
+    .state-pill {
+      min-height: 70px;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+
+    .state-pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .state-pill strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1rem;
+    }
+
+    .setpoint-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .setpoint-card {
+      min-height: 108px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .setpoint-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .setpoint-card strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 1.35rem;
+    }
+
+    .setpoint-card em {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-style: normal;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .rules ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    .ramp-indicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-left: 8px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--muted);
+      font-weight: 900;
+      vertical-align: middle;
+    }
+
+    .ramp-indicator.up {
+      background: var(--battery);
+    }
+
+    .ramp-indicator.down {
+      background: var(--load);
+    }
+
+    @media (max-width: 1040px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        min-height: 760px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100vw - 20px, 720px);
+        padding-top: 14px;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .status-card {
+        text-align: left;
+      }
+
+      .field-row,
+      .setpoint-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        padding: 14px;
+        min-height: 920px;
+      }
+
+      .diagram {
+        min-height: 800px;
+      }
+
+      .factory {
+        width: min(72vw, 320px);
+        min-width: 230px;
+      }
+
+      .device {
+        width: min(45vw, 166px);
+        min-height: 112px;
+      }
+
+      .device.top {
+        top: 12px;
+      }
+
+      .device.left {
+        left: 0;
+        top: 43%;
+      }
+
+      .device.right {
+        right: 0;
+        top: 43%;
+      }
+
+      .device.bottom {
+        bottom: 120px;
+      }
+
+      .connector.solar {
+        top: 128px;
+      }
+
+      .connector.grid {
+        bottom: 235px;
+      }
+
+      .connector.battery {
+        left: 150px;
+        width: calc(50% - 160px);
+      }
+
+      .connector.load {
+        right: 150px;
+        width: calc(50% - 160px);
+      }
+
+      .state-strip {
+        grid-template-columns: repeat(2, 1fr);
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>EMS Realtime Simulator</h1>
+        <p class="subtitle">Fake live devices for testing EMS reactions: edit the meter, solar and battery values, then watch the calculated load and control set-points.</p>
+      </div>
+      <div class="status-card" aria-live="polite">
+        <span>Controller state</span>
+        <strong id="controllerState">Balanced</strong>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside>
+        <section class="panel controls" aria-label="Fake device inputs">
+          <h2>Fake Device Readings</h2>
+          <div class="field-grid">
+            <label>
+              Meter grid kW
+              <input id="meterGridKw" type="number" step="1" value="40">
+            </label>
+            <label>
+              Factory usage kW
+              <input id="factoryUsage" type="number" min="0" step="1" value="300">
+            </label>
+            <label>
+              Solar current read kW
+              <input id="solarProduction" type="number" min="0" step="1" value="260">
+            </label>
+            <label>
+              Solar max set-point kW
+              <input id="solarMaxKw" type="number" min="0" step="1" value="500">
+            </label>
+            <div class="field-row">
+              <label>
+                Battery state %
+                <input id="batterySocInput" type="number" min="0" max="100" step="1" value="55">
+              </label>
+              <label>
+                Battery max kW
+                <input id="batteryMaxKw" type="number" min="0" step="1" value="180">
+              </label>
+            </div>
+            <label>
+              Battery current kW
+              <input id="batteryCurrentKw" type="number" step="1" value="0">
+            </label>
+          </div>
+          <p class="helper">Meter grid kW is positive for import and negative for export. Battery current is positive when discharging and negative when charging.</p>
+        </section>
+
+        <section class="panel controls" aria-label="EMS configuration">
+          <h2>EMS Settings</h2>
+          <div class="field-grid">
+            <label>
+              Target grid import kW
+              <input id="targetImport" type="number" min="0" step="0.5" value="2">
+            </label>
+            <label>
+              Battery discharge start above target kW
+              <input id="batteryStartBuffer" type="number" min="0" step="0.5" value="10">
+            </label>
+            <label>
+              Battery ramp step %
+              <input id="batteryRampStep" type="number" min="1" max="25" step="1" value="5">
+            </label>
+            <label>
+              Minimum battery SOC %
+              <input id="minSoc" type="number" min="0" max="95" step="1" value="15">
+            </label>
+            <label>
+              Maximum battery SOC %
+              <input id="maxSoc" type="number" min="5" max="100" step="1" value="100">
+            </label>
+            <label>
+              Solar controllable
+              <select id="solarControllable">
+                <option value="yes" selected>Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel metrics" aria-label="Calculated values">
+          <h2>Calculated Values</h2>
+          <div class="metric-list">
+            <div class="metric"><span>Meter grid power</span><strong id="metricGrid">0 kW</strong></div>
+            <div class="metric"><span>Factory usage</span><strong id="metricLoad">0 kW</strong></div>
+            <div class="metric"><span>Formula load check</span><strong id="metricFormulaLoad">0 kW</strong></div>
+            <div class="metric"><span>Solar production</span><strong id="metricSolar">0 kW</strong></div>
+            <div class="metric"><span>Battery SOC</span><strong id="metricBattery">0%</strong></div>
+            <div class="metric"><span>Control error</span><strong id="metricError">0 kW</strong></div>
+          </div>
+        </section>
+
+        <section class="panel rules" aria-label="EMS rules">
+          <h2>Rule Set</h2>
+          <ol>
+            <li>Keep solar open at max set-point by default.</li>
+            <li>If exporting, step the battery toward charge.</li>
+            <li>If importing above the buffer, step the battery toward discharge.</li>
+            <li>Only slow solar when the battery is full or charging at full kW.</li>
+            <li>Near target, hold the last battery command.</li>
+          </ol>
+        </section>
+      </aside>
+
+      <section>
+        <section class="panel stage" aria-label="Factory realtime energy flow">
+          <div class="diagram">
+            <div class="connector solar vertical" id="solarFlow"><div class="track"></div></div>
+            <div class="connector battery horizontal" id="batteryFlow"><div class="track"></div></div>
+            <div class="connector load horizontal" id="loadFlow"><div class="track"></div></div>
+            <div class="connector grid vertical" id="gridFlow"><div class="track"></div></div>
+
+            <article class="device top">
+              <div class="device-title" style="color: var(--solar);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 14h16l-2-7H6l-2 7Z"></path><path d="M4 14l-1 4h18l-1-4"></path><path d="M8 7l-1 7"></path><path d="M16 7l1 7"></path><path d="M12 7v7"></path></svg>
+                Solar inverter
+              </div>
+              <div class="device-readout">
+                <span>Current read <strong id="solarPower">0 kW</strong></span>
+                <span>Max set-point <strong id="solarMaxReadout">0 kW</strong></span>
+              </div>
+              <div class="setpoint">EMS set-point<strong id="solarSetpoint">0 kW allowed</strong></div>
+            </article>
+
+            <article class="device left">
+              <div class="device-title" style="color: var(--battery);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="4" y="7" width="15" height="10" rx="2"></rect><path d="M19 10h2v4h-2"></path><path d="M8 11h4"></path></svg>
+                Battery
+              </div>
+              <div class="device-readout">
+                <span>Read SOC <strong id="batterySoc">0%</strong></span>
+                <span>Current read <strong id="batteryCurrentReadout">0 kW</strong></span>
+              </div>
+              <div class="setpoint">EMS set-point<strong id="batterySetpoint">Idle</strong></div>
+              <div class="setpoint">Ramp action<strong><span id="batteryRampAction">Hold</span><span id="batteryRampArrow" class="ramp-indicator">-</span></strong></div>
+            </article>
+
+            <article class="device right">
+              <div class="device-title" style="color: var(--load);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V9l6 4V9l8 5v7"></path><path d="M9 17h1"></path><path d="M14 17h1"></path></svg>
+                Factory usage
+              </div>
+              <div class="device-readout">
+                <span>Configured demand <strong id="loadPower">0 kW</strong></span>
+                <span>Formula check <strong id="formulaLoadPower">0 kW</strong></span>
+              </div>
+            </article>
+
+            <article class="device bottom">
+              <div class="device-title" style="color: var(--grid);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3v18"></path><path d="M5 21h14"></path><path d="M7 8h10"></path><path d="M9 8l-3 13"></path><path d="M15 8l3 13"></path><path d="M9 4h6"></path></svg>
+                Import / export meter
+              </div>
+              <div class="device-readout">
+                <span>Signed power <strong id="gridPower">0 kW</strong></span>
+                <span>Direction <strong id="gridDirection">Import</strong></span>
+              </div>
+              <div class="setpoint">EMS target<strong id="gridSetpoint">+2 kW import</strong></div>
+            </article>
+
+            <div class="factory" aria-hidden="true">
+              <svg viewBox="0 0 460 395" role="img">
+                <defs>
+                  <linearGradient id="wall" x1="0" x2="1" y1="0" y2="1">
+                    <stop stop-color="#eef3fb"></stop>
+                    <stop offset="1" stop-color="#d6deec"></stop>
+                  </linearGradient>
+                  <linearGradient id="roof" x1="0" x2="1">
+                    <stop stop-color="#74839d"></stop>
+                    <stop offset="1" stop-color="#4e5d75"></stop>
+                  </linearGradient>
+                </defs>
+                <path d="M76 355V167l89 51v-51l93 53v-60l126 71v124H76Z" fill="url(#wall)" stroke="#c6cfdd" stroke-width="4"></path>
+                <path d="M66 168l101 58v-52l93 53v-61l133 76" fill="none" stroke="url(#roof)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></path>
+                <rect x="109" y="266" width="48" height="89" rx="3" fill="#9badc8"></rect>
+                <rect x="195" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="258" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="321" y="274" width="42" height="36" rx="4" fill="#ffffff" opacity="0.9"></rect>
+                <rect x="195" y="325" width="168" height="30" rx="4" fill="#74839d"></rect>
+              </svg>
+              <div class="ems-core"><span>EMS</span></div>
+            </div>
+          </div>
+
+          <div class="state-strip" aria-label="Current control state">
+            <div class="state-pill"><span>EMS mode</span><strong id="modeState">Balanced</strong></div>
+            <div class="state-pill"><span>Factory usage</span><strong id="loadState">0 kW</strong></div>
+            <div class="state-pill"><span>Battery action</span><strong id="batteryAction">Idle</strong></div>
+            <div class="state-pill"><span>Grid state</span><strong id="gridState">Neutral</strong></div>
+          </div>
+        </section>
+
+        <section class="panel setpoints" aria-label="Outgoing EMS set-points">
+          <h2>Outgoing EMS Set-Points</h2>
+          <div class="setpoint-grid">
+            <div class="setpoint-card">
+              <span>To solar inverter</span>
+              <strong id="outSolar">0 kW</strong>
+              <em id="outSolarReason">Solar remains open unless battery cannot absorb export.</em>
+            </div>
+            <div class="setpoint-card">
+              <span>To battery</span>
+              <strong id="outBattery">Idle</strong>
+              <em id="outBatteryReason">Battery is used before solar curtailment or extra grid import.</em>
+            </div>
+            <div class="setpoint-card">
+              <span>Grid target</span>
+              <strong id="outGrid">+2 kW</strong>
+              <em>Small import target prevents accidental export.</em>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const els = {
+      meterGridKw: document.getElementById("meterGridKw"),
+      factoryUsage: document.getElementById("factoryUsage"),
+      solarProduction: document.getElementById("solarProduction"),
+      solarMaxKw: document.getElementById("solarMaxKw"),
+      batterySocInput: document.getElementById("batterySocInput"),
+      batteryMaxKw: document.getElementById("batteryMaxKw"),
+      batteryCurrentKw: document.getElementById("batteryCurrentKw"),
+      targetImport: document.getElementById("targetImport"),
+      batteryStartBuffer: document.getElementById("batteryStartBuffer"),
+      batteryRampStep: document.getElementById("batteryRampStep"),
+      minSoc: document.getElementById("minSoc"),
+      maxSoc: document.getElementById("maxSoc"),
+      solarControllable: document.getElementById("solarControllable"),
+      controllerState: document.getElementById("controllerState"),
+      metricGrid: document.getElementById("metricGrid"),
+      metricLoad: document.getElementById("metricLoad"),
+      metricFormulaLoad: document.getElementById("metricFormulaLoad"),
+      metricSolar: document.getElementById("metricSolar"),
+      metricBattery: document.getElementById("metricBattery"),
+      metricError: document.getElementById("metricError"),
+      solarPower: document.getElementById("solarPower"),
+      solarMaxReadout: document.getElementById("solarMaxReadout"),
+      solarSetpoint: document.getElementById("solarSetpoint"),
+      batterySoc: document.getElementById("batterySoc"),
+      batteryCurrentReadout: document.getElementById("batteryCurrentReadout"),
+      batterySetpoint: document.getElementById("batterySetpoint"),
+      batteryRampAction: document.getElementById("batteryRampAction"),
+      batteryRampArrow: document.getElementById("batteryRampArrow"),
+      loadPower: document.getElementById("loadPower"),
+      formulaLoadPower: document.getElementById("formulaLoadPower"),
+      gridPower: document.getElementById("gridPower"),
+      gridDirection: document.getElementById("gridDirection"),
+      gridSetpoint: document.getElementById("gridSetpoint"),
+      solarFlow: document.getElementById("solarFlow"),
+      batteryFlow: document.getElementById("batteryFlow"),
+      loadFlow: document.getElementById("loadFlow"),
+      gridFlow: document.getElementById("gridFlow"),
+      modeState: document.getElementById("modeState"),
+      loadState: document.getElementById("loadState"),
+      batteryAction: document.getElementById("batteryAction"),
+      gridState: document.getElementById("gridState"),
+      outSolar: document.getElementById("outSolar"),
+      outSolarReason: document.getElementById("outSolarReason"),
+      outBattery: document.getElementById("outBattery"),
+      outBatteryReason: document.getElementById("outBatteryReason"),
+      outGrid: document.getElementById("outGrid")
+    };
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function readNumber(input, fallback = 0) {
+      const value = Number(input.value);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function kw(value, options = {}) {
+      const rounded = Math.round(Math.abs(value));
+      const sign = options.sign && value > 0 ? "+" : value < 0 ? "-" : "";
+      return `${sign}${rounded.toLocaleString("en-US")} kW`;
+    }
+
+    function pct(value) {
+      return `${Math.round(value)}%`;
+    }
+
+    function setFlow(el, amount, max, color, reverse = false) {
+      const intensity = max > 0 ? clamp(amount / max, 0, 1) : 0;
+      el.classList.toggle("reverse", reverse);
+      el.style.setProperty("--flow-color", color);
+      el.style.setProperty("--flow-opacity", intensity > 0.01 ? String(0.28 + intensity * 0.72) : "0");
+      el.style.setProperty("--flow-speed", `${clamp(1.4 - intensity * 0.95, 0.38, 1.4)}s`);
+    }
+
+    function calculateRealtime() {
+      const netGrid = readNumber(els.meterGridKw);
+      const factoryUsage = Math.max(0, readNumber(els.factoryUsage));
+      const solarProduction = Math.max(0, readNumber(els.solarProduction));
+      const solarMaxKw = Math.max(0, readNumber(els.solarMaxKw));
+      const batterySoc = clamp(readNumber(els.batterySocInput), 0, 100);
+      const batteryMaxKw = Math.max(0, readNumber(els.batteryMaxKw));
+      const batteryCurrentKw = readNumber(els.batteryCurrentKw);
+      const targetImport = Math.max(0, readNumber(els.targetImport));
+      const batteryStartBuffer = Math.max(0, readNumber(els.batteryStartBuffer));
+      const batteryRampStep = clamp(readNumber(els.batteryRampStep), 1, 25);
+      const minSoc = clamp(readNumber(els.minSoc), 0, 95);
+      const maxSoc = clamp(readNumber(els.maxSoc), Math.max(5, minSoc), 100);
+      const solarControllable = els.solarControllable.value === "yes";
+
+      const formulaLoad = Math.max(0, solarProduction + netGrid + batteryCurrentKw);
+      const expectedGridBeforeControl = factoryUsage - solarProduction;
+      const gridWithoutBattery = netGrid + batteryCurrentKw;
+      const controlError = netGrid - targetImport;
+      const canCharge = batterySoc < maxSoc && batteryMaxKw > 0;
+      const canDischarge = batterySoc > minSoc && batteryMaxKw > 0;
+      const currentBatteryPercent = batteryMaxKw > 0 ? clamp((batteryCurrentKw / batteryMaxKw) * 100, -100, 100) : 0;
+      let nextBatteryPercent = currentBatteryPercent;
+      let rampAction = "Hold";
+      let rampDirection = "hold";
+
+      let batteryChargeSetpoint = 0;
+      let batteryDischargeSetpoint = 0;
+      let solarAllowedSetpoint = solarControllable ? Math.max(solarProduction, solarMaxKw) : solarProduction;
+      let mode = solarAllowedSetpoint > solarProduction ? "Solar max set-point" : "Balanced";
+      let solarReason = solarAllowedSetpoint > solarProduction
+        ? `Solar is open to max ${kw(solarAllowedSetpoint)}.`
+        : "Solar remains at current production.";
+      let batteryReason = "No correction needed.";
+
+      const isOnTarget = Math.abs(netGrid - targetImport) <= 0.1;
+      const fullBatterySolarNudge = !canCharge && solarControllable;
+
+      if (fullBatterySolarNudge) {
+        const solarNudge = netGrid - targetImport;
+        solarAllowedSetpoint = clamp(solarProduction + solarNudge, 0, Math.max(solarProduction, solarMaxKw));
+        mode = "Nudge solar";
+        solarReason = solarNudge >= 0
+          ? `Battery is full, so PV set-point nudges up by ${kw(solarNudge)} from current output.`
+          : `Battery is full, so PV set-point nudges down by ${kw(Math.abs(solarNudge))} from current output.`;
+      }
+
+      if (!fullBatterySolarNudge && !isOnTarget && netGrid < targetImport) {
+        nextBatteryPercent = canCharge ? clamp(currentBatteryPercent - batteryRampStep, -100, 100) : currentBatteryPercent;
+        rampAction = canCharge ? `Step ${batteryRampStep}% toward charge` : "Hold, battery full";
+        rampDirection = canCharge ? "down" : "hold";
+        const requestedBatteryPower = (nextBatteryPercent / 100) * batteryMaxKw;
+        batteryChargeSetpoint = requestedBatteryPower < 0 ? Math.abs(requestedBatteryPower) : 0;
+        batteryDischargeSetpoint = requestedBatteryPower > 0 ? requestedBatteryPower : 0;
+        const exportCorrectionNeeded = targetImport - netGrid;
+        const remainingSurplus = Math.max(0, exportCorrectionNeeded - batteryChargeSetpoint);
+
+        if (remainingSurplus > 0 && solarControllable) {
+          solarAllowedSetpoint = Math.max(0, solarProduction - remainingSurplus);
+          solarReason = `Slow solar only because battery cannot absorb ${kw(remainingSurplus)}.`;
+        } else if (remainingSurplus > 0) {
+          solarReason = "Solar is not controllable, export may remain.";
+        } else {
+          solarReason = `Solar stays open to max ${kw(solarAllowedSetpoint)} because the battery absorbs surplus.`;
+        }
+
+        mode = remainingSurplus > 0 ? "Slow solar" : "Solar max set-point";
+        batteryReason = `Ramp controller moved from ${Math.round(currentBatteryPercent)}% to ${Math.round(nextBatteryPercent)}%.`;
+      } else if (!fullBatterySolarNudge && !isOnTarget && netGrid > targetImport + batteryStartBuffer) {
+        const importIsAboveBatteryStart = netGrid > targetImport + batteryStartBuffer;
+        nextBatteryPercent = canDischarge && importIsAboveBatteryStart ? clamp(currentBatteryPercent + batteryRampStep, -100, 100) : currentBatteryPercent;
+        rampAction = canDischarge ? `Step ${batteryRampStep}% toward discharge` : "Hold, battery minimum";
+        rampDirection = canDischarge ? "up" : "hold";
+        const requestedBatteryPower = (nextBatteryPercent / 100) * batteryMaxKw;
+        batteryChargeSetpoint = requestedBatteryPower < 0 ? Math.abs(requestedBatteryPower) : 0;
+        batteryDischargeSetpoint = requestedBatteryPower > 0 ? requestedBatteryPower : 0;
+        mode = "Solar max set-point";
+        batteryReason = `Ramp controller moved from ${Math.round(currentBatteryPercent)}% to ${Math.round(nextBatteryPercent)}%.`;
+      } else if (!fullBatterySolarNudge && !isOnTarget && canCharge && solarControllable && solarProduction < solarMaxKw) {
+        mode = "Solar max set-point";
+        solarReason = `Solar is open to max ${kw(solarMaxKw)} so extra sun can charge the battery.`;
+        batteryReason = `Holding ${Math.round(currentBatteryPercent)}% while meter is inside the import buffer.`;
+      }
+
+      const calculatedBatterySetpoint = batteryDischargeSetpoint > 0 ? batteryDischargeSetpoint : -batteryChargeSetpoint;
+
+      const actualSolarAfterSetpoint = Math.min(solarProduction, solarAllowedSetpoint);
+      const projectedGrid = gridWithoutBattery + batteryChargeSetpoint - batteryDischargeSetpoint;
+
+      return {
+        netGrid,
+        factoryUsage,
+        expectedGridBeforeControl,
+        gridWithoutBattery,
+        solarProduction,
+        solarMaxKw,
+        batterySoc,
+        batteryMaxKw,
+        batteryCurrentKw,
+        targetImport,
+        batteryStartBuffer,
+        batteryRampStep,
+        minSoc,
+        maxSoc,
+        formulaLoad,
+        controlError,
+        currentBatteryPercent,
+        nextBatteryPercent,
+        rampAction,
+        rampDirection,
+        batteryChargeSetpoint,
+        batteryDischargeSetpoint,
+        batteryNetSetpoint: batteryChargeSetpoint - batteryDischargeSetpoint,
+        solarAllowedSetpoint,
+        actualSolarAfterSetpoint,
+        projectedGrid,
+        mode,
+        solarReason,
+        batteryReason
+      };
+    }
+
+    function updateView() {
+      const state = calculateRealtime();
+      const maxFlow = Math.max(state.solarProduction, state.factoryUsage, state.formulaLoad, state.batteryMaxKw, Math.abs(state.netGrid), 1);
+      const batteryFlow = Math.abs(state.batteryNetSetpoint);
+      const gridDirection = state.netGrid >= 0 ? "Importing" : "Exporting";
+      const batteryText = state.batteryChargeSetpoint > 0
+        ? `Charge ${kw(state.batteryChargeSetpoint)}`
+        : state.batteryDischargeSetpoint > 0
+          ? `Discharge ${kw(state.batteryDischargeSetpoint)}`
+          : "Idle";
+      const projectedText = state.projectedGrid >= 0
+        ? `Projected import ${kw(state.projectedGrid)}`
+        : `Projected export ${kw(Math.abs(state.projectedGrid))}`;
+
+      els.controllerState.textContent = state.mode;
+      els.metricGrid.textContent = kw(state.netGrid, { sign: true });
+      els.metricLoad.textContent = kw(state.factoryUsage);
+      els.metricFormulaLoad.textContent = kw(state.formulaLoad);
+      els.metricSolar.textContent = kw(state.solarProduction);
+      els.metricBattery.textContent = pct(state.batterySoc);
+      els.metricError.textContent = kw(state.controlError, { sign: true });
+
+      els.solarPower.textContent = kw(state.solarProduction);
+      els.solarMaxReadout.textContent = kw(state.solarMaxKw);
+      els.solarSetpoint.textContent = `${kw(state.solarAllowedSetpoint)} allowed`;
+      els.batterySoc.textContent = pct(state.batterySoc);
+      els.batteryCurrentReadout.textContent = kw(state.batteryCurrentKw, { sign: true });
+      els.batterySetpoint.textContent = batteryText;
+      els.batteryRampAction.textContent = state.rampAction;
+      els.batteryRampArrow.textContent = state.rampDirection === "up" ? "↑" : state.rampDirection === "down" ? "↓" : "-";
+      els.batteryRampArrow.classList.toggle("up", state.rampDirection === "up");
+      els.batteryRampArrow.classList.toggle("down", state.rampDirection === "down");
+      els.loadPower.textContent = kw(state.factoryUsage);
+      els.formulaLoadPower.textContent = kw(state.formulaLoad);
+      els.gridPower.textContent = kw(state.netGrid, { sign: true });
+      els.gridDirection.textContent = state.netGrid >= 0 ? "Import" : "Export";
+      els.gridSetpoint.textContent = `+${kw(state.targetImport)} import`;
+
+      els.modeState.textContent = state.mode;
+      els.loadState.textContent = kw(state.factoryUsage);
+      els.batteryAction.textContent = batteryText;
+      els.gridState.textContent = `${gridDirection} now, ${projectedText.toLowerCase()}`;
+
+      els.outSolar.textContent = kw(state.solarAllowedSetpoint);
+      els.outSolarReason.textContent = state.solarReason;
+      els.outBattery.textContent = batteryText;
+      els.outBatteryReason.textContent = state.batteryReason;
+      els.outGrid.textContent = `+${kw(state.targetImport)}`;
+
+      setFlow(els.solarFlow, state.solarAllowedSetpoint, maxFlow, "var(--solar)", false);
+      setFlow(els.loadFlow, state.factoryUsage, maxFlow, "var(--load)", false);
+      setFlow(els.batteryFlow, batteryFlow, Math.max(state.batteryMaxKw, 1), "var(--battery)", state.batteryChargeSetpoint > 0);
+      setFlow(els.gridFlow, Math.abs(state.netGrid), maxFlow, "var(--grid)", state.netGrid > 0);
+    }
+
+    [
+      els.meterGridKw,
+      els.factoryUsage,
+      els.solarProduction,
+      els.solarMaxKw,
+      els.batterySocInput,
+      els.batteryMaxKw,
+      els.batteryCurrentKw,
+      els.targetImport,
+      els.batteryStartBuffer,
+      els.batteryRampStep,
+      els.minSoc,
+      els.maxSoc,
+      els.solarControllable
+    ].forEach((input) => {
+      input.addEventListener("input", updateView);
+      input.addEventListener("change", updateView);
+    });
+
+    updateView();
+  </script>
+</body>
+</html>
