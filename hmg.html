@@ -517,6 +517,10 @@
       font-size: 1.12rem;
     }
 
+    .mobile-device-tables {
+      display: none;
+    }
+
     @media (max-width: 1040px) {
       .stage {
         min-height: 820px;
@@ -661,30 +665,7 @@
       }
 
       .hover-panel {
-        position: static;
-        width: 100%;
-        max-height: 170px;
-        margin-top: 8px;
-        transform: none;
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
-        box-shadow: none;
-        z-index: 100;
-      }
-
-      .hover-panel table {
-        min-width: 360px;
-        font-size: 0.68rem;
-      }
-
-      .hover-panel th,
-      .hover-panel td {
-        padding: 4px 5px;
-      }
-
-      .device.left .hover-panel {
-        transform: none;
+        display: none;
       }
 
       .chart-panel {
@@ -701,6 +682,46 @@
 
       .energy-totals {
         grid-template-columns: 1fr;
+      }
+
+      .mobile-device-tables {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .mobile-table-card {
+        padding: 10px;
+      }
+
+      .mobile-table-card h2 {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+      }
+
+      .mobile-table-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .mobile-table-scroll table {
+        width: 100%;
+        min-width: 360px;
+        border-collapse: collapse;
+        font-size: 0.72rem;
+      }
+
+      .mobile-table-scroll th,
+      .mobile-table-scroll td {
+        padding: 6px 7px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      .mobile-table-scroll th {
+        color: var(--muted);
       }
     }
 
@@ -824,6 +845,17 @@
       </div>
     </section>
 
+    <section class="mobile-device-tables" aria-label="Mobile device readouts">
+      <div class="panel mobile-table-card">
+        <h2>Solar devices</h2>
+        <div class="mobile-table-scroll" id="mobileInverterTable"></div>
+      </div>
+      <div class="panel mobile-table-card">
+        <h2>Battery devices</h2>
+        <div class="mobile-table-scroll" id="mobileBatteryTable"></div>
+      </div>
+    </section>
+
     <section class="panel chart-panel" aria-label="Today power history">
       <div class="chart-head">
         <h2>Today readout history</h2>
@@ -877,6 +909,8 @@
     };
     els.historyChart = document.getElementById("historyChart");
     els.chartStatus = document.getElementById("chartStatus");
+    els.mobileInverterTable = document.getElementById("mobileInverterTable");
+    els.mobileBatteryTable = document.getElementById("mobileBatteryTable");
     els.solarKwhToday = document.getElementById("solarKwhToday");
     els.batteryChargeKwhToday = document.getElementById("batteryChargeKwhToday");
     els.batteryDischargeKwhToday = document.getElementById("batteryDischargeKwhToday");
@@ -1101,7 +1135,7 @@
       els.shadowAction.textContent = control.last_action || "--";
       els.lastPoll.textContent = state.last_poll ? new Date(state.last_poll).toLocaleTimeString() : "--";
 
-      els.inverterTable.innerHTML = table(
+      const inverterTableHtml = table(
         ["Unit", "Status", "Production", "Last read"],
         inverters.map((device) => [
           device.values?.unit_id ?? device.id.replace("inverter_", ""),
@@ -1110,8 +1144,10 @@
           device.last_success ? new Date(device.last_success).toLocaleTimeString() : "--"
         ])
       );
+      els.inverterTable.innerHTML = inverterTableHtml;
+      els.mobileInverterTable.innerHTML = inverterTableHtml;
 
-      els.batteryTable.innerHTML = table(
+      const batteryTableHtml = table(
         ["Host", "SOC", "Power", "Status", "Last read"],
         batteries.map((device) => [
           device.values?.host || device.id.replace("battery_", ""),
@@ -1121,6 +1157,8 @@
           device.last_success ? new Date(device.last_success).toLocaleTimeString() : "--"
         ])
       );
+      els.batteryTable.innerHTML = batteryTableHtml;
+      els.mobileBatteryTable.innerHTML = batteryTableHtml;
 
       setFlow(els.solarFlow, Math.abs(solarKw || 0), maxFlow, "var(--solar)", false);
       setFlow(els.batteryFlow, Math.abs(batteryKw || 0), maxFlow, "var(--battery)", (batteryKw || 0) < 0);
