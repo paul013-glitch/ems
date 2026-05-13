@@ -104,6 +104,15 @@
       font-size: 0.86rem;
     }
 
+    .transport strong {
+      color: var(--ink);
+      font-size: 0.9rem;
+      max-width: 340px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .panel {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -166,7 +175,7 @@
       position: absolute;
       z-index: 4;
       width: 194px;
-      min-height: 116px;
+      min-height: 104px;
       padding: 11px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -193,7 +202,7 @@
     }
 
     .device.bottom {
-      bottom: 10px;
+      bottom: 84px;
       left: 50%;
       transform: translateX(-50%);
     }
@@ -343,7 +352,7 @@
       position: absolute;
       left: 14px;
       right: 14px;
-      bottom: 14px;
+      bottom: 10px;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
@@ -351,8 +360,8 @@
     }
 
     .state-pill {
-      min-height: 56px;
-      padding: 8px 10px;
+      min-height: 48px;
+      padding: 7px 9px;
       border-radius: 8px;
       background: rgba(255, 255, 255, 0.9);
       border: 1px solid var(--line);
@@ -564,6 +573,7 @@
       <div class="transport">
         <button id="toggleLoop" type="button" aria-label="Pause polling">II</button>
         <span id="loopState">Loading...</span>
+        <strong id="shadowAction">--</strong>
       </div>
     </header>
 
@@ -610,8 +620,6 @@
           </div>
           <div class="device-readout">
             <span>Factory usage <strong id="calculatedLoad">-- kW</strong></span>
-            <span>Formula <strong id="loadFormula">PV + grid + battery</strong></span>
-            <span>Shadow EMS <strong id="shadowAction">--</strong></span>
             <span>Last poll <strong id="lastPoll">--</strong></span>
           </div>
         </article>
@@ -682,7 +690,6 @@
       batteryBadge: document.getElementById("batteryBadge"),
       batteryState: document.getElementById("batteryState"),
       calculatedLoad: document.getElementById("calculatedLoad"),
-      loadFormula: document.getElementById("loadFormula"),
       shadowAction: document.getElementById("shadowAction"),
       lastPoll: document.getElementById("lastPoll"),
       inverterTable: document.getElementById("inverterTable"),
@@ -770,7 +777,6 @@
       els.batteryState.textContent = Number.isFinite(control.battery_setpoint_percent) ? `${control.battery_setpoint_percent}%` : "--";
 
       els.calculatedLoad.textContent = formatKw(calculatedLoadKw, 1);
-      els.loadFormula.textContent = `${formatKw(solarKw, 1)} + ${formatKw(gridKw, 1)} + ${formatKw(batteryKw, 1)}`;
       els.shadowAction.textContent = control.last_action || "--";
       els.lastPoll.textContent = state.last_poll ? new Date(state.last_poll).toLocaleTimeString() : "--";
 
