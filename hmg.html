@@ -183,6 +183,11 @@
       box-shadow: 0 14px 34px rgba(31, 41, 55, 0.1);
     }
 
+    .device:hover,
+    .device:focus-within {
+      z-index: 1000000;
+    }
+
     .device.top {
       top: 10px;
       left: 50%;
@@ -381,7 +386,7 @@
 
     .hover-panel {
       position: absolute;
-      z-index: 100;
+      z-index: 1000001;
       top: calc(100% + 10px);
       left: 50%;
       width: min(480px, calc(100vw - 24px));
