@@ -546,72 +546,116 @@
       }
 
       .diagram {
-        min-height: auto;
-        display: grid;
-        grid-template-areas:
-          "solar"
-          "factory"
-          "battery"
-          "balance"
-          "grid";
-        gap: 10px;
-        place-items: stretch;
+        position: relative;
+        min-height: 560px;
+        display: block;
       }
 
       .device {
-        position: relative;
-        inset: auto;
-        width: 100%;
-        min-height: 124px;
-        transform: none;
+        position: absolute;
+        width: min(39vw, 148px);
+        min-height: 86px;
+        padding: 8px;
       }
 
       .device.top {
-        grid-area: solar;
-        top: auto;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
       }
 
       .device.left {
-        grid-area: battery;
-        left: auto;
-        top: auto;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
       }
 
       .device.right {
-        grid-area: balance;
-        right: auto;
-        top: auto;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
       }
 
       .device.bottom {
-        grid-area: grid;
-        bottom: auto;
+        bottom: 74px;
+        left: 50%;
+        transform: translateX(-50%);
       }
 
       .factory {
-        position: relative;
+        position: absolute;
         display: grid;
-        grid-area: factory;
-        width: min(58vw, 230px);
-        min-width: 0;
-        justify-self: center;
-        margin: 4px 0;
+        width: min(38vw, 170px);
+        min-width: 128px;
+        left: 50%;
+        top: 50%;
+        margin: 0;
+        transform: translate(-50%, -50%);
       }
 
       .ems-core {
-        width: 64px;
-        height: 64px;
+        width: 56px;
+        height: 56px;
+        border-width: 5px;
       }
 
       .connector {
-        display: none;
+        display: block;
+      }
+
+      .connector.solar {
+        top: 112px;
+        height: calc(50% - 170px);
+        min-height: 68px;
+      }
+
+      .connector.grid {
+        bottom: 122px;
+        height: calc(50% - 170px);
+        min-height: 70px;
+      }
+
+      .connector.battery {
+        left: min(38vw, 160px);
+        width: calc(50% - min(38vw, 160px) - 58px);
+        min-width: 30px;
+      }
+
+      .connector.load {
+        right: min(38vw, 160px);
+        width: calc(50% - min(38vw, 160px) - 58px);
+        min-width: 30px;
+      }
+
+      .device-title {
+        gap: 6px;
+        font-size: 0.78rem;
+      }
+
+      .device-title svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .badge {
+        font-size: 0.64rem;
+      }
+
+      .device-readout {
+        margin-top: 6px;
+        gap: 3px;
+        font-size: 0.68rem;
+      }
+
+      .device-readout strong {
+        font-size: 0.82rem;
       }
 
       .hover-panel {
         position: static;
         width: 100%;
-        max-height: 220px;
-        margin-top: 10px;
+        max-height: 170px;
+        margin-top: 8px;
         transform: none;
         opacity: 1;
         visibility: visible;
